@@ -2,122 +2,327 @@
 {% block content %}
 
 <h2 class="mb-4">Admin panel</h2>
-
 <div id="banner" class="alert" style="display:none"></div>
 
-<div class="row g-4">
+<!-- TAB NAV -->
+<ul class="nav nav-tabs mb-4" id="adminTabs">
+  <li class="nav-item">
+    <button class="nav-link active" onclick="showTab('patients')">Patients</button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" onclick="showTab('doctors')">Doctors</button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" onclick="showTab('staff')">Staff accounts</button>
+  </li>
+</ul>
 
-  <!-- ADD PATIENT -->
-  <div class="col-md-5">
-    <div class="card p-4 shadow-sm">
-      <h5 class="mb-3">Add patient</h5>
+<!-- ===================== PATIENTS TAB ===================== -->
+<div id="tab-patients">
+  <div class="row g-4">
+    <div class="col-md-5">
+      <div class="card p-4 shadow-sm">
+        <h5 class="mb-3">Add patient</h5>
 
-      <label class="form-label">Full name</label>
-      <input id="newName" class="form-control" placeholder="Patient full name" maxlength="100">
+        <label class="form-label">Full name</label>
+        <input id="ptName" class="form-control" placeholder="Patient full name" maxlength="100">
 
-      <label class="form-label mt-3">Age</label>
-      <input id="newAge" class="form-control" type="number" min="0" max="150" placeholder="Age">
+        <label class="form-label mt-3">Age</label>
+        <input id="ptAge" class="form-control" type="number" min="0" max="150" placeholder="Age">
 
-      <label class="form-label mt-3">Assigned doctor</label>
-      <input id="newDoctor" class="form-control" placeholder="Doctor name" maxlength="100">
+        <label class="form-label mt-3">Assign doctor</label>
+        <select id="ptDoctor" class="form-select">
+          <option value="">-- Select a doctor --</option>
+        </select>
 
-      <button id="addBtn" onclick="addPatient()" class="btn btn-success mt-4 w-100">
-        Add patient
-      </button>
-    </div>
-  </div>
-
-  <!-- PATIENT LIST -->
-  <div class="col-md-7">
-    <div class="card p-4 shadow-sm">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0">Patient list</h5>
-        <span id="count" class="badge bg-secondary">0 patients</span>
+        <button id="addPatientBtn" onclick="addPatient()" class="btn btn-success mt-4 w-100">
+          Add patient
+        </button>
       </div>
-      <ul id="list" class="list-group"></ul>
-      <p id="emptyMsg" class="text-muted text-center mt-3" style="display:none">No patients added yet.</p>
+    </div>
+
+    <div class="col-md-7">
+      <div class="card p-4 shadow-sm">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0">Patient list</h5>
+          <span id="ptCount" class="badge bg-secondary">0 patients</span>
+        </div>
+        <ul id="ptList" class="list-group"></ul>
+        <p id="ptEmpty" class="text-muted text-center mt-3" style="display:none">No patients yet.</p>
+      </div>
     </div>
   </div>
+</div>
 
+<!-- ===================== DOCTORS TAB ===================== -->
+<div id="tab-doctors" style="display:none">
+  <div class="row g-4">
+    <div class="col-md-5">
+      <div class="card p-4 shadow-sm">
+        <h5 class="mb-3">Add doctor</h5>
+
+        <label class="form-label">Full name</label>
+        <input id="drName" class="form-control" placeholder="Dr. Full Name" maxlength="100">
+
+        <label class="form-label mt-3">Specialisation</label>
+        <input id="drSpec" class="form-control" placeholder="e.g. Cardiology, General" maxlength="100">
+
+        <label class="form-label mt-3">Phone (optional)</label>
+        <input id="drPhone" class="form-control" placeholder="e.g. 0300-1234567" maxlength="20">
+
+        <hr class="my-3">
+        <p class="text-muted" style="font-size:13px">Login account (optional — lets the doctor log in)</p>
+
+        <label class="form-label">Username</label>
+        <input id="drUser" class="form-control" placeholder="e.g. dr_ahmed" maxlength="80" autocomplete="off">
+
+        <label class="form-label mt-3">Password</label>
+        <input id="drPass" class="form-control" type="password" placeholder="Min 8 characters" maxlength="200" autocomplete="new-password">
+
+        <button id="addDoctorBtn" onclick="addDoctor()" class="btn btn-primary mt-4 w-100">
+          Add doctor
+        </button>
+      </div>
+    </div>
+
+    <div class="col-md-7">
+      <div class="card p-4 shadow-sm">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0">Doctor list</h5>
+          <span id="drCount" class="badge bg-secondary">0 doctors</span>
+        </div>
+        <ul id="drList" class="list-group"></ul>
+        <p id="drEmpty" class="text-muted text-center mt-3" style="display:none">No doctors added yet.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== STAFF TAB ===================== -->
+<div id="tab-staff" style="display:none">
+  <div class="row g-4">
+    <div class="col-md-5">
+      <div class="card p-4 shadow-sm">
+        <h5 class="mb-3">Create staff account</h5>
+        <p class="text-muted" style="font-size:13px">Use this to create login accounts for lab staff, pharmacy, or patients.</p>
+
+        <label class="form-label">Username</label>
+        <input id="sfUser" class="form-control" placeholder="e.g. lab_sara" maxlength="80" autocomplete="off">
+
+        <label class="form-label mt-3">Password</label>
+        <input id="sfPass" class="form-control" type="password" placeholder="Min 8 characters" maxlength="200" autocomplete="new-password">
+
+        <label class="form-label mt-3">Role</label>
+        <select id="sfRole" class="form-select">
+          <option value="">-- Select role --</option>
+          <option value="doctor">Doctor</option>
+          <option value="lab">Lab</option>
+          <option value="pharmacy">Pharmacy</option>
+          <option value="patient">Patient</option>
+        </select>
+
+        <button id="addStaffBtn" onclick="addStaff()" class="btn btn-warning mt-4 w-100">
+          Create account
+        </button>
+      </div>
+    </div>
+
+    <div class="col-md-7">
+      <div class="card p-4 shadow-sm">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0">Staff accounts</h5>
+          <span id="sfCount" class="badge bg-secondary">0 accounts</span>
+        </div>
+        <ul id="sfList" class="list-group"></ul>
+        <p id="sfEmpty" class="text-muted text-center mt-3" style="display:none">No staff accounts yet.</p>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
+  // -------- UTILS --------
+  function escHtml(s) {
+    const d = document.createElement('div');
+    d.appendChild(document.createTextNode(String(s)));
+    return d.innerHTML;
+  }
+
   function showBanner(msg, type) {
     const b = document.getElementById('banner');
     b.className = 'alert alert-' + type;
     b.textContent = msg;
     b.style.display = 'block';
-    setTimeout(() => { b.style.display = 'none'; }, 4000);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => b.style.display = 'none', 5000);
   }
 
-  async function addPatient() {
-    const name   = document.getElementById('newName').value.trim();
-    const age    = document.getElementById('newAge').value;
-    const doctor = document.getElementById('newDoctor').value.trim();
-    const btn    = document.getElementById('addBtn');
+  function setBtn(id, loading, label) {
+    const b = document.getElementById(id);
+    b.disabled = loading;
+    b.textContent = loading ? 'Saving...' : label;
+  }
 
-    if (!name) { showBanner('Patient name is required.', 'warning'); return; }
+  // -------- TABS --------
+  function showTab(name) {
+    ['patients','doctors','staff'].forEach(t => {
+      document.getElementById('tab-'+t).style.display = t === name ? 'block' : 'none';
+    });
+    document.querySelectorAll('#adminTabs .nav-link').forEach((btn, i) => {
+      btn.classList.toggle('active', ['patients','doctors','staff'][i] === name);
+    });
+    if (name === 'patients') { loadDoctorDropdown(); loadPatients(); }
+    if (name === 'doctors')  loadDoctors();
+    if (name === 'staff')    loadStaff();
+  }
+
+  // -------- DOCTORS --------
+  async function loadDoctorDropdown() {
+    try {
+      const res = await fetch('/doctors');
+      if (!res.ok) return;
+      const data = await res.json();
+      const sel = document.getElementById('ptDoctor');
+      sel.innerHTML = '<option value="">-- Select a doctor --</option>';
+      data.forEach(d => {
+        const o = document.createElement('option');
+        o.value = d.id;
+        o.textContent = `Dr. ${d.name} — ${d.specialisation}`;
+        sel.appendChild(o);
+      });
+    } catch(e) {}
+  }
+
+  async function addDoctor() {
+    const name = document.getElementById('drName').value.trim();
+    const spec = document.getElementById('drSpec').value.trim();
+    const phone= document.getElementById('drPhone').value.trim();
+    const user = document.getElementById('drUser').value.trim();
+    const pass_= document.getElementById('drPass').value;
+
+    if (!name) { showBanner('Doctor name is required.', 'warning'); return; }
+    if (!spec)  { showBanner('Specialisation is required.', 'warning'); return; }
+    if (user && !pass_) { showBanner('Password is required when creating a login account.', 'warning'); return; }
+    if (pass_ && pass_.length < 8) { showBanner('Password must be at least 8 characters.', 'warning'); return; }
+
+    setBtn('addDoctorBtn', true, 'Add doctor');
+    try {
+      const res = await fetch('/add_doctor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, specialisation: spec, phone, username: user, password: pass_ })
+      });
+      const data = await res.json();
+      if (!res.ok) { showBanner(data.error || 'Failed to add doctor.', 'danger'); return; }
+      showBanner(`Dr. ${name} added successfully.`, 'success');
+      ['drName','drSpec','drPhone','drUser','drPass'].forEach(id => document.getElementById(id).value = '');
+      loadDoctors();
+      loadDoctorDropdown();
+    } catch(e) {
+      showBanner('Network error.', 'danger');
+    } finally {
+      setBtn('addDoctorBtn', false, 'Add doctor');
+    }
+  }
+
+  async function deleteDoctor(id, name) {
+    if (!confirm(`Remove Dr. ${name}? This cannot be done if patients are still assigned to them.`)) return;
+    try {
+      const res = await fetch('/delete_doctor/' + id, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) { showBanner(data.error, 'danger'); return; }
+      showBanner('Doctor removed.', 'success');
+      loadDoctors();
+      loadDoctorDropdown();
+    } catch(e) { showBanner('Network error.', 'danger'); }
+  }
+
+  async function loadDoctors() {
+    try {
+      const res = await fetch('/doctors');
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = document.getElementById('drList');
+      const empty= document.getElementById('drEmpty');
+      const count= document.getElementById('drCount');
+      list.innerHTML = '';
+      count.textContent = data.length + ' doctor' + (data.length !== 1 ? 's' : '');
+      if (data.length === 0) { empty.style.display = 'block'; return; }
+      empty.style.display = 'none';
+      data.forEach(d => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        li.innerHTML = `
+          <div>
+            <strong>Dr. ${escHtml(d.name)}</strong>
+            <span class="badge bg-info text-dark ms-2">${escHtml(d.specialisation)}</span>
+            ${d.phone ? `<small class="text-muted ms-2">${escHtml(d.phone)}</small>` : ''}
+          </div>`;
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-outline-danger btn-sm';
+        btn.textContent = 'Remove';
+        btn.onclick = () => deleteDoctor(d.id, d.name);
+        li.appendChild(btn);
+        list.appendChild(li);
+      });
+    } catch(e) {}
+  }
+
+  // -------- PATIENTS --------
+  async function addPatient() {
+    const name     = document.getElementById('ptName').value.trim();
+    const age      = document.getElementById('ptAge').value;
+    const doctorId = document.getElementById('ptDoctor').value;
+
+    if (!name)     { showBanner('Patient name is required.', 'warning'); return; }
     if (!age || Number(age) < 0 || Number(age) > 150) {
       showBanner('Enter a valid age (0–150).', 'warning'); return;
     }
-    if (!doctor) { showBanner('Doctor name is required.', 'warning'); return; }
+    if (!doctorId) { showBanner('Please select a doctor from the list.', 'warning'); return; }
 
-    btn.disabled = true;
-    btn.textContent = 'Adding...';
-
+    setBtn('addPatientBtn', true, 'Add patient');
     try {
       const res = await fetch('/add_patient', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, age: Number(age), doctor })
+        body: JSON.stringify({ name, age: Number(age), doctor_id: Number(doctorId) })
       });
-
       const data = await res.json();
       if (!res.ok) { showBanner(data.error || 'Failed to add patient.', 'danger'); return; }
-
       showBanner('Patient added successfully.', 'success');
-      document.getElementById('newName').value   = '';
-      document.getElementById('newAge').value    = '';
-      document.getElementById('newDoctor').value = '';
+      ['ptName','ptAge'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('ptDoctor').value = '';
       loadPatients();
-    } catch (e) {
-      showBanner('Network error. Please try again.', 'danger');
+    } catch(e) {
+      showBanner('Network error.', 'danger');
     } finally {
-      btn.disabled = false;
-      btn.textContent = 'Add patient';
+      setBtn('addPatientBtn', false, 'Add patient');
     }
   }
 
   async function deletePatient(id, name) {
     if (!confirm(`Delete patient "${name}"? This cannot be undone.`)) return;
-
     try {
       const res = await fetch('/delete_patient/' + id, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) { showBanner(data.error || 'Failed to delete.', 'danger'); return; }
       showBanner('Patient deleted.', 'success');
       loadPatients();
-    } catch (e) {
-      showBanner('Network error.', 'danger');
-    }
+    } catch(e) { showBanner('Network error.', 'danger'); }
   }
 
   async function loadPatients() {
     try {
-      const res  = await fetch('/patients');
-      if (!res.ok) { showBanner('Failed to load patients.', 'danger'); return; }
+      const res = await fetch('/patients');
+      if (!res.ok) return;
       const data = await res.json();
-
-      const list     = document.getElementById('list');
-      const emptyMsg = document.getElementById('emptyMsg');
-      const count    = document.getElementById('count');
-
+      const list  = document.getElementById('ptList');
+      const empty = document.getElementById('ptEmpty');
+      const count = document.getElementById('ptCount');
       list.innerHTML = '';
       count.textContent = data.length + ' patient' + (data.length !== 1 ? 's' : '');
-
-      if (data.length === 0) { emptyMsg.style.display = 'block'; return; }
-      emptyMsg.style.display = 'none';
-
+      if (data.length === 0) { empty.style.display = 'block'; return; }
+      empty.style.display = 'none';
       data.forEach(p => {
         const li = document.createElement('li');
         li.className = 'list-group-item d-flex justify-content-between align-items-center';
@@ -126,7 +331,6 @@
             <strong>${escHtml(p.name)}</strong>
             <small class="text-muted ms-2">Age: ${p.age} &middot; Dr. ${escHtml(p.doctor)}</small>
           </div>`;
-
         const btn = document.createElement('button');
         btn.className = 'btn btn-outline-danger btn-sm';
         btn.textContent = 'Delete';
@@ -134,18 +338,83 @@
         li.appendChild(btn);
         list.appendChild(li);
       });
-    } catch (e) {
-      showBanner('Failed to load patient list.', 'danger');
+    } catch(e) {}
+  }
+
+  // -------- STAFF --------
+  async function addStaff() {
+    const user = document.getElementById('sfUser').value.trim();
+    const pass_= document.getElementById('sfPass').value;
+    const role = document.getElementById('sfRole').value;
+
+    if (!user)  { showBanner('Username is required.', 'warning'); return; }
+    if (!pass_ || pass_.length < 8) { showBanner('Password must be at least 8 characters.', 'warning'); return; }
+    if (!role)  { showBanner('Please select a role.', 'warning'); return; }
+
+    setBtn('addStaffBtn', true, 'Create account');
+    try {
+      const res = await fetch('/add_staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, password: pass_, role })
+      });
+      const data = await res.json();
+      if (!res.ok) { showBanner(data.error || 'Failed to create account.', 'danger'); return; }
+      showBanner(data.msg, 'success');
+      ['sfUser','sfPass'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('sfRole').value = '';
+      loadStaff();
+    } catch(e) {
+      showBanner('Network error.', 'danger');
+    } finally {
+      setBtn('addStaffBtn', false, 'Create account');
     }
   }
 
-  // Prevent XSS when inserting patient data into the DOM
-  function escHtml(str) {
-    const div = document.createElement('div');
-    div.appendChild(document.createTextNode(String(str)));
-    return div.innerHTML;
+  async function deactivateStaff(id, username) {
+    if (!confirm(`Deactivate account "${username}"? They will no longer be able to log in.`)) return;
+    try {
+      const res = await fetch('/deactivate_staff/' + id, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) { showBanner(data.error || 'Failed.', 'danger'); return; }
+      showBanner('Account deactivated.', 'success');
+      loadStaff();
+    } catch(e) { showBanner('Network error.', 'danger'); }
   }
 
+  async function loadStaff() {
+    try {
+      const res = await fetch('/staff');
+      if (!res.ok) return;
+      const data = await res.json();
+      const list  = document.getElementById('sfList');
+      const empty = document.getElementById('sfEmpty');
+      const count = document.getElementById('sfCount');
+      list.innerHTML = '';
+      count.textContent = data.length + ' account' + (data.length !== 1 ? 's' : '');
+      if (data.length === 0) { empty.style.display = 'block'; return; }
+      empty.style.display = 'none';
+      const roleColors = { doctor:'primary', lab:'success', pharmacy:'warning', patient:'secondary' };
+      data.forEach(u => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        li.innerHTML = `
+          <div>
+            <strong>${escHtml(u.username)}</strong>
+            <span class="badge bg-${roleColors[u.role]||'secondary'} ms-2">${escHtml(u.role)}</span>
+          </div>`;
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-outline-danger btn-sm';
+        btn.textContent = 'Deactivate';
+        btn.onclick = () => deactivateStaff(u.id, u.username);
+        li.appendChild(btn);
+        list.appendChild(li);
+      });
+    } catch(e) {}
+  }
+
+  // -------- INIT --------
+  loadDoctorDropdown();
   loadPatients();
 </script>
 

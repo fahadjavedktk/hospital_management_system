@@ -10,7 +10,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 
-# -------- CONFIG (all from environment variables) --------
+# -------- CONFIG --------
 app.secret_key = os.environ.get("SECRET_KEY", "change-this-before-production")
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     "DATABASE_URL", "sqlite:///hospital.db"
@@ -19,75 +19,83 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)
 
 db = SQLAlchemy(app)
-
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login_page"
 
+
 # -------- MODELS --------
 
 class UserAccount(db.Model):
-    """Stores all users (admin, doctor, lab, pharmacy, patient)."""
     __tablename__ = "user_account"
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
+    id            = db.Column(db.Integer, primary_key=True)
+    username      = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
-    role = db.Column(db.String(20), nullable=False)
-    is_active = db.Column(db.Boolean, default=True)
+    role          = db.Column(db.String(20), nullable=False)
+    is_active     = db.Column(db.Boolean, default=True)
 
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+    def set_password(self, pw):
+        self.password_hash = generate_password_hash(pw)
 
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+    def check_password(self, pw):
+        return check_password_hash(self.password_hash, pw)
+
+
+class Doctor(db.Model):
+    """Doctor profile — stores name, specialisation, phone."""
+    id              = db.Column(db.Integer, primary_key=True)
+    name            = db.Column(db.String(100), nullable=False)
+    specialisation  = db.Column(db.String(100), nullable=False)
+    phone           = db.Column(db.String(20), nullable=True)
+    user_id         = db.Column(db.Integer, db.ForeignKey("user_account.id"), nullable=True)
+    is_active       = db.Column(db.Boolean, default=True)
 
 
 class Patient(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    age = db.Column(db.Integer, nullable=False)
-    doctor = db.Column(db.String(100), nullable=False)
-    # Links a patient record to a UserAccount with role=patient
-    user_id = db.Column(db.Integer, db.ForeignKey("user_account.id"), nullable=True)
+    id        = db.Column(db.Integer, primary_key=True)
+    name      = db.Column(db.String(100), nullable=False)
+    age       = db.Column(db.Integer, nullable=False)
+    doctor_id = db.Column(db.Integer, db.ForeignKey("doctor.id"), nullable=False)
+    user_id   = db.Column(db.Integer, db.ForeignKey("user_account.id"), nullable=True)
+    doctor    = db.relationship("Doctor", backref="patients")
 
 
 class LabRequest(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    id         = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey("patient.id"), nullable=False)
-    test = db.Column(db.String(100), nullable=False)
-    result = db.Column(db.String(200), default="Pending")
+    test       = db.Column(db.String(100), nullable=False)
+    result     = db.Column(db.String(200), default="Pending")
 
 
 class Prescription(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    id         = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey("patient.id"), nullable=False)
-    medicine = db.Column(db.String(100), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
+    medicine   = db.Column(db.String(100), nullable=False)
+    quantity   = db.Column(db.Integer, nullable=False)
 
 
 class Medicine(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
+    id    = db.Column(db.Integer, primary_key=True)
+    name  = db.Column(db.String(100), nullable=False)
     stock = db.Column(db.Integer, nullable=False, default=0)
     price = db.Column(db.Float, nullable=False, default=0.0)
 
 
 class AuditLog(db.Model):
-    """Records every sensitive action for compliance."""
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(80))
-    action = db.Column(db.String(200))
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.String(80))
+    action     = db.Column(db.String(200))
     ip_address = db.Column(db.String(50))
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
 
-# -------- AUTH USER CLASS --------
+# -------- AUTH --------
 
 class AuthUser(UserMixin):
-    def __init__(self, user_account):
-        self.id = str(user_account.id)
-        self.username = user_account.username
-        self.role = user_account.role
+    def __init__(self, u):
+        self.id       = str(u.id)
+        self.username = u.username
+        self.role     = u.role
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -100,21 +108,18 @@ def load_user(user_id):
 # -------- HELPERS --------
 
 def audit(action):
-    """Write an audit log entry for the current request."""
     try:
-        log = AuditLog(
-            user_id=current_user.username if current_user.is_authenticated else "anon",
-            action=action,
-            ip_address=request.remote_addr
-        )
-        db.session.add(log)
+        db.session.add(AuditLog(
+            user_id    = current_user.username if current_user.is_authenticated else "anon",
+            action     = action,
+            ip_address = request.remote_addr
+        ))
         db.session.commit()
     except Exception:
-        pass  # Never let audit failure crash the main request
+        pass
 
 
 def role_required(*roles):
-    """Return 403 JSON if current user's role is not in the allowed list."""
     if current_user.role not in roles:
         return jsonify({"error": "Access denied"}), 403
     return None
@@ -123,10 +128,9 @@ def role_required(*roles):
 LAB_TESTS = ["X-Ray", "Blood Test", "MRI", "CT Scan"]
 
 
-# -------- SEED DEFAULT USERS --------
+# -------- SEED USERS --------
 
 def seed_users():
-    """Create default users on first run if they don't exist."""
     defaults = [
         ("admin",   "Admin@2024!",   "admin"),
         ("doctor",  "Doctor@2024!",  "doctor"),
@@ -147,7 +151,9 @@ with app.app_context():
     seed_users()
 
 
-# -------- ROUTES --------
+# ======================================================
+# ROUTES
+# ======================================================
 
 @app.route("/")
 def home():
@@ -174,10 +180,8 @@ def login():
         return jsonify({"error": "Username and password required"}), 400
 
     user = UserAccount.query.filter_by(username=username, is_active=True).first()
-
     if user and user.check_password(password):
-        auth_user = AuthUser(user)
-        login_user(auth_user, remember=False)
+        login_user(AuthUser(user), remember=False)
         session.permanent = True
         audit(f"LOGIN username={username}")
         return jsonify({"msg": "ok"})
@@ -197,20 +201,109 @@ def logout():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    role_template = {
-        "admin": "admin.html",
-        "doctor": "doctor.html",
-        "lab": "lab.html",
+    templates = {
+        "admin":    "admin.html",
+        "doctor":   "doctor.html",
+        "lab":      "lab.html",
         "pharmacy": "pharmacy.html",
-        "patient": "patient.html",
+        "patient":  "patient.html",
     }
-    template = role_template.get(current_user.role)
-    if not template:
+    t = templates.get(current_user.role)
+    if not t:
         return "Unknown role", 403
-    return render_template(template)
+    return render_template(t)
 
 
-# -------- ADMIN --------
+# ======================================================
+# ADMIN — DOCTOR MANAGEMENT
+# ======================================================
+
+@app.route("/doctors")
+@login_required
+def get_doctors():
+    denied = role_required("admin", "doctor")
+    if denied:
+        return denied
+    docs = Doctor.query.filter_by(is_active=True).all()
+    return jsonify([{
+        "id": d.id,
+        "name": d.name,
+        "specialisation": d.specialisation,
+        "phone": d.phone or ""
+    } for d in docs])
+
+
+@app.route("/add_doctor", methods=["POST"])
+@login_required
+def add_doctor():
+    denied = role_required("admin")
+    if denied:
+        return denied
+
+    data = request.get_json(silent=True) or {}
+    name           = str(data.get("name", "")).strip()
+    specialisation = str(data.get("specialisation", "")).strip()
+    phone          = str(data.get("phone", "")).strip()
+    username       = str(data.get("username", "")).strip()
+    password       = str(data.get("password", "")).strip()
+
+    if not name:
+        return jsonify({"error": "Doctor name is required"}), 400
+    if not specialisation:
+        return jsonify({"error": "Specialisation is required"}), 400
+
+    try:
+        user_id = None
+        # Optionally create a login account for this doctor
+        if username and password:
+            if UserAccount.query.filter_by(username=username).first():
+                return jsonify({"error": f"Username '{username}' is already taken"}), 400
+            u = UserAccount(username=username, role="doctor")
+            u.set_password(password)
+            db.session.add(u)
+            db.session.flush()   # get the id before commit
+            user_id = u.id
+
+        doc = Doctor(
+            name=name,
+            specialisation=specialisation,
+            phone=phone or None,
+            user_id=user_id
+        )
+        db.session.add(doc)
+        db.session.commit()
+        audit(f"ADD_DOCTOR name={name}")
+        return jsonify({"msg": "Doctor added", "id": doc.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Failed to add doctor"}), 500
+
+
+@app.route("/delete_doctor/<int:doctor_id>", methods=["DELETE"])
+@login_required
+def delete_doctor(doctor_id):
+    denied = role_required("admin")
+    if denied:
+        return denied
+
+    doc = Doctor.query.get_or_404(doctor_id)
+    # Check if any patients are still assigned
+    if Patient.query.filter_by(doctor_id=doctor_id).count() > 0:
+        return jsonify({"error": "Cannot delete — patients are still assigned to this doctor. Reassign them first."}), 400
+
+    try:
+        doc.is_active = False   # soft delete to preserve audit history
+        db.session.commit()
+        audit(f"DEACTIVATE_DOCTOR id={doctor_id}")
+        return jsonify({"msg": "Doctor removed"})
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "Failed to remove doctor"}), 500
+
+
+# ======================================================
+# ADMIN — PATIENT MANAGEMENT
+# ======================================================
 
 @app.route("/add_patient", methods=["POST"])
 @login_required
@@ -219,13 +312,16 @@ def add_patient():
     if denied:
         return denied
 
-    data = request.get_json(silent=True) or {}
-    name = str(data.get("name", "")).strip()
-    age = data.get("age")
-    doctor = str(data.get("doctor", "")).strip()
+    data      = request.get_json(silent=True) or {}
+    name      = str(data.get("name", "")).strip()
+    age       = data.get("age")
+    doctor_id = data.get("doctor_id")
 
-    if not name or not doctor:
-        return jsonify({"error": "Name and doctor are required"}), 400
+    if not name:
+        return jsonify({"error": "Patient name is required"}), 400
+    if not doctor_id:
+        return jsonify({"error": "Please select a doctor"}), 400
+
     try:
         age = int(age)
         if age < 0 or age > 150:
@@ -233,10 +329,14 @@ def add_patient():
     except (TypeError, ValueError):
         return jsonify({"error": "Age must be a number between 0 and 150"}), 400
 
+    doctor = Doctor.query.get(int(doctor_id))
+    if not doctor or not doctor.is_active:
+        return jsonify({"error": "Selected doctor not found"}), 400
+
     try:
-        db.session.add(Patient(name=name, age=age, doctor=doctor))
+        db.session.add(Patient(name=name, age=age, doctor_id=doctor.id))
         db.session.commit()
-        audit(f"ADD_PATIENT name={name}")
+        audit(f"ADD_PATIENT name={name} doctor_id={doctor_id}")
         return jsonify({"msg": "Patient added"})
     except Exception:
         db.session.rollback()
@@ -251,8 +351,11 @@ def patients():
         return denied
     p = Patient.query.all()
     return jsonify([{
-        "id": x.id, "name": x.name,
-        "age": x.age, "doctor": x.doctor
+        "id":     x.id,
+        "name":   x.name,
+        "age":    x.age,
+        "doctor": x.doctor.name if x.doctor else "Unassigned",
+        "doctor_id": x.doctor_id
     } for x in p])
 
 
@@ -274,7 +377,85 @@ def delete_patient(patient_id):
         return jsonify({"error": "Failed to delete"}), 500
 
 
-# -------- DOCTOR --------
+# ======================================================
+# ADMIN — STAFF / USER MANAGEMENT
+# ======================================================
+
+@app.route("/add_staff", methods=["POST"])
+@login_required
+def add_staff():
+    """Create a login account for lab, pharmacy, or other roles."""
+    denied = role_required("admin")
+    if denied:
+        return denied
+
+    data     = request.get_json(silent=True) or {}
+    username = str(data.get("username", "")).strip()
+    password = str(data.get("password", "")).strip()
+    role     = str(data.get("role", "")).strip()
+
+    allowed_roles = ["doctor", "lab", "pharmacy", "patient"]
+    if not username or not password:
+        return jsonify({"error": "Username and password are required"}), 400
+    if role not in allowed_roles:
+        return jsonify({"error": f"Role must be one of: {', '.join(allowed_roles)}"}), 400
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+    if UserAccount.query.filter_by(username=username).first():
+        return jsonify({"error": f"Username '{username}' is already taken"}), 400
+
+    try:
+        u = UserAccount(username=username, role=role)
+        u.set_password(password)
+        db.session.add(u)
+        db.session.commit()
+        audit(f"ADD_STAFF username={username} role={role}")
+        return jsonify({"msg": f"Staff account created for {username}"})
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "Failed to create account"}), 500
+
+
+@app.route("/staff")
+@login_required
+def get_staff():
+    denied = role_required("admin")
+    if denied:
+        return denied
+    users = UserAccount.query.filter(
+        UserAccount.role != "admin",
+        UserAccount.is_active == True
+    ).all()
+    return jsonify([{
+        "id":       u.id,
+        "username": u.username,
+        "role":     u.role
+    } for u in users])
+
+
+@app.route("/deactivate_staff/<int:user_id>", methods=["DELETE"])
+@login_required
+def deactivate_staff(user_id):
+    denied = role_required("admin")
+    if denied:
+        return denied
+
+    u = UserAccount.query.get_or_404(user_id)
+    if u.role == "admin":
+        return jsonify({"error": "Cannot deactivate an admin account"}), 400
+    try:
+        u.is_active = False
+        db.session.commit()
+        audit(f"DEACTIVATE_STAFF username={u.username}")
+        return jsonify({"msg": "Account deactivated"})
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "Failed to deactivate"}), 500
+
+
+# ======================================================
+# DOCTOR
+# ======================================================
 
 @app.route("/patient/<int:patient_id>")
 @login_required
@@ -282,7 +463,6 @@ def patient_detail(patient_id):
     denied = role_required("doctor")
     if denied:
         return denied
-
     p = Patient.query.get_or_404(patient_id)
     audit(f"VIEW_PATIENT id={patient_id}")
     return render_template("patient_form.html", patient=p, tests=LAB_TESTS)
@@ -295,10 +475,10 @@ def prescribe():
     if denied:
         return denied
 
-    data = request.get_json(silent=True) or {}
+    data       = request.get_json(silent=True) or {}
     patient_id = data.get("patient_id")
-    medicine = str(data.get("medicine", "")).strip()
-    test = str(data.get("test", "")).strip()
+    medicine   = str(data.get("medicine", "")).strip()
+    test       = str(data.get("test", "")).strip()
 
     try:
         qty = int(data.get("qty", 0))
@@ -311,7 +491,6 @@ def prescribe():
         return jsonify({"error": "Medicine name is required"}), 400
 
     patient = Patient.query.get_or_404(int(patient_id))
-
     try:
         db.session.add(Prescription(
             patient_id=patient.id,
@@ -332,7 +511,9 @@ def prescribe():
         return jsonify({"error": "Failed to save prescription"}), 500
 
 
-# -------- LAB --------
+# ======================================================
+# LAB
+# ======================================================
 
 @app.route("/lab")
 @login_required
@@ -341,10 +522,10 @@ def lab():
     if denied:
         return denied
     return jsonify([{
-        "id": l.id,
+        "id":         l.id,
         "patient_id": l.patient_id,
-        "test": l.test,
-        "result": l.result
+        "test":       l.test,
+        "result":     l.result
     } for l in LabRequest.query.all()])
 
 
@@ -355,7 +536,7 @@ def lab_update():
     if denied:
         return denied
 
-    data = request.get_json(silent=True) or {}
+    data   = request.get_json(silent=True) or {}
     lab_id = data.get("id")
     result = str(data.get("result", "")).strip()
 
@@ -373,7 +554,9 @@ def lab_update():
         return jsonify({"error": "Failed to update"}), 500
 
 
-# -------- PHARMACY --------
+# ======================================================
+# PHARMACY
+# ======================================================
 
 @app.route("/add_med", methods=["POST"])
 @login_required
@@ -382,8 +565,8 @@ def add_med():
     if denied:
         return denied
 
-    data = request.get_json(silent=True) or {}
-    name = str(data.get("name", "")).strip()
+    data  = request.get_json(silent=True) or {}
+    name  = str(data.get("name", "")).strip()
 
     try:
         stock = int(data.get("stock", 0))
@@ -413,12 +596,16 @@ def meds():
     if denied:
         return denied
     return jsonify([{
-        "id": m.id, "name": m.name,
-        "stock": m.stock, "price": m.price
+        "id":    m.id,
+        "name":  m.name,
+        "stock": m.stock,
+        "price": m.price
     } for m in Medicine.query.all()])
 
 
-# -------- PATIENT (self-view) --------
+# ======================================================
+# PATIENT self-view
+# ======================================================
 
 @app.route("/my")
 @login_required
@@ -427,14 +614,14 @@ def my():
     if denied:
         return denied
 
-    # Find the Patient record linked to the logged-in user account
     p = Patient.query.filter_by(user_id=current_user.id).first()
     if not p:
-        return jsonify({"error": "No patient record found for your account"}), 404
+        return jsonify({"error": "No patient record linked to your account"}), 404
 
     audit(f"PATIENT_SELF_VIEW patient_id={p.id}")
     return jsonify({
         "patient": p.name,
+        "doctor":  p.doctor.name if p.doctor else "Not assigned",
         "labs": [
             {"test": l.test, "result": l.result}
             for l in LabRequest.query.filter_by(patient_id=p.id).all()
@@ -446,7 +633,9 @@ def my():
     })
 
 
-# -------- ERROR HANDLERS --------
+# ======================================================
+# ERROR HANDLERS
+# ======================================================
 
 @app.errorhandler(404)
 def not_found(e):
@@ -461,7 +650,9 @@ def server_error(e):
     return jsonify({"error": "Server error"}), 500
 
 
-# -------- RUN --------
+# ======================================================
+# RUN
+# ======================================================
 
 if __name__ == "__main__":
     debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
