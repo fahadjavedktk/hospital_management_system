@@ -1,1 +1,37 @@
 .env
+# --- Python Virtual Environments ---
+# This ignores the venv folder you just created and common alternatives
+venv/
+.venv/
+env/
+ENV/
+lib/
+bin/
+include/
+Scripts/
+pyvenv.cfg
+
+
+
+# --- Python Cache & Compiled Files ---
+# Speeds up local execution but clutters the GitHub repo
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- Database Files ---
+# Prevents your local patient data from being pushed to the cloud
+*.db
+*.sqlite3
+
+# --- IDE & Editor Settings ---
+# Ignores settings specific to your VS Code setup
+.vscode/
+.idea/
+.project
+.pydevproject
+
+# --- Operating System Files ---
+.DS_Store
+Thumbs.db
