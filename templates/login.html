@@ -1,43 +1,95 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Login</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Hospital MS</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f4f6f9; }
+    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .login-card { background: #fff; border-radius: 16px; padding: 2.5rem 2rem; width: 100%; max-width: 400px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    .login-card h3 { font-weight: 600; margin-bottom: 1.5rem; text-align: center; }
+    .btn-submit { border-radius: 8px; padding: .65rem; font-size: 15px; }
+    #errorMsg { display: none; }
+    #submitBtn { position: relative; }
+    .spinner-border { width: 1rem; height: 1rem; border-width: 2px; }
+  </style>
 </head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <h3>&#127973; Hospital MS</h3>
 
-<body class="bg-dark text-white">
+    <div id="errorMsg" class="alert alert-danger py-2"></div>
 
-<div class="container mt-5 col-md-4">
-<div class="card p-4 text-dark">
+    <div class="mb-3">
+      <label class="form-label fw-500">Username</label>
+      <input id="username" class="form-control" placeholder="Enter username" autocomplete="username" maxlength="80">
+    </div>
 
-<h3 class="text-center">Login</h3>
+    <div class="mb-4">
+      <label class="form-label fw-500">Password</label>
+      <input id="password" type="password" class="form-control" placeholder="Enter password" autocomplete="current-password" maxlength="200">
+    </div>
 
-<p><b>admin:</b> admin123</p>
-<p><b>doctor:</b> doc123</p>
-<p><b>lab:</b> lab123</p>
-<p><b>pharma:</b> pharma123</p>
-
-<input id="username" class="form-control mt-2" placeholder="Username">
-<input id="password" type="password" class="form-control mt-2" placeholder="Password">
-
-<button onclick="login()" class="btn btn-primary w-100 mt-3">Login</button>
-
-</div>
+    <button id="submitBtn" onclick="login()" class="btn btn-primary w-100 btn-submit">
+      Login
+    </button>
+  </div>
 </div>
 
 <script>
-async function login(){
-let r=await fetch('/login',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-username:username.value,
-password:password.value
-})
-});
-if(r.ok) location='/dashboard';
-}
-</script>
+  const usernameEl = document.getElementById('username');
+  const passwordEl = document.getElementById('password');
+  const errorEl   = document.getElementById('errorMsg');
+  const submitBtn = document.getElementById('submitBtn');
 
+  // Allow pressing Enter to submit
+  [usernameEl, passwordEl].forEach(el => {
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+  });
+
+  async function login() {
+    const username = usernameEl.value.trim();
+    const password = passwordEl.value;
+
+    errorEl.style.display = 'none';
+
+    if (!username || !password) {
+      showError('Please enter your username and password.');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border me-2"></span>Logging in...';
+
+    try {
+      const res = await fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        window.location = '/dashboard';
+      } else {
+        showError(data.error || 'Invalid credentials. Please try again.');
+      }
+    } catch (e) {
+      showError('Network error. Please check your connection.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = 'Login';
+    }
+  }
+
+  function showError(msg) {
+    errorEl.textContent = msg;
+    errorEl.style.display = 'block';
+  }
+</script>
 </body>
 </html>

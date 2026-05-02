@@ -1,31 +1,61 @@
-name: Python CI/CD Pipeline
+name: Hospital App CI/CD Pipeline
 
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.10
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
 
-    # 👇 ADD YOUR CODE HERE
-    - name: Install Dependencies
-      run: pip install -r requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
-    - name: Lint Code
-      run: pip install flake8 && flake8 .
+      - name: Lint with flake8
+        run: |
+          pip install flake8
+          flake8 . --max-line-length=120 --exclude=.git,__pycache__
 
-    - name: Run Tests
-      run: pytest
+      - name: Security scan with bandit
+        run: |
+          pip install bandit
+          bandit -r app.py -ll
 
-    - name: Build Docker Image
-      run: docker build -t my-python-app .
+      - name: Run tests with coverage
+        run: |
+          pip install pytest-cov
+          pytest --cov=app --cov-report=term-missing --cov-fail-under=70
+        env:
+          SECRET_KEY: "ci-test-secret-key-not-for-production"
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Build Docker image
+        run: docker build -t hospital-app:${{ github.sha }} .
+
+      - name: Verify container starts
+        run: |
+          docker run -d --name test-container \
+            -e SECRET_KEY=ci-test-key \
+            -p 5000:5000 \
+            hospital-app:${{ github.sha }}
+          sleep 5
+          curl --fail http://localhost:5000/ || exit 1
+          docker stop test-container

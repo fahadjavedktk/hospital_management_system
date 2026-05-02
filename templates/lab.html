@@ -1,29 +1,106 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2>🧪 Lab Panel</h2>
+<h2 class="mb-4">Lab panel</h2>
 
-<div class="card p-3 shadow">
+<div id="banner" class="alert" style="display:none"></div>
 
-<h5>Lab Requests</h5>
-<ul id="lablist" class="list-group"></ul>
+<div class="card p-4 shadow-sm">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Lab requests</h5>
+    <button onclick="loadLab()" class="btn btn-outline-secondary btn-sm">Refresh</button>
+  </div>
 
+  <div id="loading" class="text-muted">Loading...</div>
+  <ul id="lablist" class="list-group"></ul>
+  <p id="emptyMsg" class="text-muted text-center mt-3" style="display:none">No lab requests found.</p>
 </div>
 
 <script>
-async function load(){
-let r=await fetch('/lab');
-let d=await r.json();
+  function showBanner(msg, type) {
+    const b = document.getElementById('banner');
+    b.className = 'alert alert-' + type;
+    b.textContent = msg;
+    b.style.display = 'block';
+    setTimeout(() => { b.style.display = 'none'; }, 4000);
+  }
 
-lablist.innerHTML="";
-d.forEach(x=>{
-let li=document.createElement("li");
-li.className="list-group-item";
-li.innerHTML=`Patient ID: ${x.patient_id} | Test: ${x.test} | Result: ${x.result}`;
-lablist.appendChild(li);
-});
-}
-load();
+  function escHtml(str) {
+    const d = document.createElement('div');
+    d.appendChild(document.createTextNode(String(str)));
+    return d.innerHTML;
+  }
+
+  async function updateResult(id, currentResult) {
+    const result = prompt('Enter lab result:', currentResult === 'Pending' ? '' : currentResult);
+    if (result === null || result.trim() === '') return;
+
+    try {
+      const res = await fetch('/lab_update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, result: result.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok) { showBanner(data.error || 'Update failed.', 'danger'); return; }
+      showBanner('Result updated.', 'success');
+      loadLab();
+    } catch (e) {
+      showBanner('Network error.', 'danger');
+    }
+  }
+
+  async function loadLab() {
+    const loadingEl = document.getElementById('loading');
+    const listEl    = document.getElementById('lablist');
+    const emptyEl   = document.getElementById('emptyMsg');
+
+    loadingEl.style.display = 'block';
+    loadingEl.textContent = 'Loading...';
+    listEl.innerHTML = '';
+
+    try {
+      const res = await fetch('/lab');
+      if (!res.ok) {
+        loadingEl.textContent = 'Failed to load lab requests.';
+        loadingEl.className = 'text-danger';
+        return;
+      }
+
+      const data = await res.json();
+      loadingEl.style.display = 'none';
+
+      if (data.length === 0) { emptyEl.style.display = 'block'; return; }
+      emptyEl.style.display = 'none';
+
+      data.forEach(x => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+        const isPending = x.result === 'Pending';
+        li.innerHTML = `
+          <div>
+            <strong>Patient #${x.patient_id}</strong>
+            &mdash; ${escHtml(x.test)}
+            <span class="badge ms-2 ${isPending ? 'bg-warning text-dark' : 'bg-success'}">
+              ${escHtml(x.result)}
+            </span>
+          </div>`;
+
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-outline-primary btn-sm';
+        btn.textContent = isPending ? 'Enter result' : 'Update';
+        btn.onclick = () => updateResult(x.id, x.result);
+        li.appendChild(btn);
+        listEl.appendChild(li);
+      });
+    } catch (e) {
+      loadingEl.textContent = 'Network error. Please refresh.';
+      loadingEl.className = 'text-danger';
+    }
+  }
+
+  loadLab();
 </script>
 
 {% endblock %}

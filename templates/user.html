@@ -1,33 +1,68 @@
 {% extends "base.html" %}
-
 {% block content %}
 
-<h2>👤 User Panel</h2>
+<h2 class="mb-4">User panel</h2>
 
-<button onclick="load()" class="btn btn-info">Load Patients</button>
+<div id="banner" class="alert" style="display:none"></div>
 
-<ul id="list" class="list-group mt-3"></ul>
+<div class="card p-4 shadow-sm">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">All patients</h5>
+    <button onclick="load()" class="btn btn-outline-info btn-sm">Refresh</button>
+  </div>
+
+  <div id="loading" class="text-muted">Loading...</div>
+  <ul id="list" class="list-group"></ul>
+  <p id="emptyMsg" class="text-muted text-center mt-3" style="display:none">No patients found.</p>
+</div>
 
 <script>
+  function escHtml(str) {
+    const d = document.createElement('div');
+    d.appendChild(document.createTextNode(String(str)));
+    return d.innerHTML;
+  }
 
-async function load(){
-    let res = await fetch('/patients');
-    let data = await res.json();
+  async function load() {
+    const loadingEl = document.getElementById('loading');
+    const listEl    = document.getElementById('list');
+    const emptyEl   = document.getElementById('emptyMsg');
 
-    list.innerHTML = "";
+    loadingEl.style.display = 'block';
+    loadingEl.textContent = 'Loading...';
+    listEl.innerHTML = '';
 
-    data.forEach(p=>{
-        let li = document.createElement("li");
-        li.className = "list-group-item";
+    try {
+      const res = await fetch('/patients');
+      if (!res.ok) {
+        loadingEl.textContent = 'Access denied or failed to load.';
+        loadingEl.className = 'text-danger';
+        return;
+      }
 
-        li.innerHTML = `${p.name} | ${p.age} | ${p.ward} | ${p.doctor} | ${p.fees}`;
+      const data = await res.json();
+      loadingEl.style.display = 'none';
 
-        list.appendChild(li);
-    });
-}
+      if (data.length === 0) { emptyEl.style.display = 'block'; return; }
+      emptyEl.style.display = 'none';
 
-load();
+      data.forEach(p => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item';
+        li.innerHTML = `
+          <strong>${escHtml(p.name)}</strong>
+          <span class="text-muted ms-2">
+            Age: ${p.age} &middot; Dr. ${escHtml(p.doctor)}
+          </span>`;
+        listEl.appendChild(li);
+      });
+    } catch (e) {
+      loadingEl.textContent = 'Network error. Please refresh.';
+      loadingEl.className = 'text-danger';
+    }
+  }
 
+  load();
 </script>
 
 {% endblock %}

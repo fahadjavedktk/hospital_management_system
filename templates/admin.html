@@ -1,88 +1,152 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2 class="mb-4">🛠 Admin Panel</h2>
+<h2 class="mb-4">Admin panel</h2>
 
-<div class="row">
+<div id="banner" class="alert" style="display:none"></div>
 
-<!-- ADD PATIENT -->
-<div class="col-md-5">
-<div class="card p-3 shadow">
+<div class="row g-4">
 
-<h5>Add Patient</h5>
+  <!-- ADD PATIENT -->
+  <div class="col-md-5">
+    <div class="card p-4 shadow-sm">
+      <h5 class="mb-3">Add patient</h5>
 
-<label>Name</label>
-<input id="name" class="form-control" placeholder="Enter patient name">
+      <label class="form-label">Full name</label>
+      <input id="newName" class="form-control" placeholder="Patient full name" maxlength="100">
 
-<label class="mt-2">Age</label>
-<input id="age" class="form-control" placeholder="Enter age">
+      <label class="form-label mt-3">Age</label>
+      <input id="newAge" class="form-control" type="number" min="0" max="150" placeholder="Age">
 
-<label class="mt-2">Doctor</label>
-<input id="doctor" class="form-control" placeholder="Assign doctor">
+      <label class="form-label mt-3">Assigned doctor</label>
+      <input id="newDoctor" class="form-control" placeholder="Doctor name" maxlength="100">
 
-<button onclick="addPatient()" class="btn btn-success mt-3 w-100">
-➕ Add Patient
-</button>
+      <button id="addBtn" onclick="addPatient()" class="btn btn-success mt-4 w-100">
+        Add patient
+      </button>
+    </div>
+  </div>
 
-</div>
-</div>
-
-<!-- PATIENT LIST -->
-<div class="col-md-7">
-<div class="card p-3 shadow">
-
-<h5>Patient List</h5>
-
-<ul id="list" class="list-group mt-2"></ul>
-
-</div>
-</div>
+  <!-- PATIENT LIST -->
+  <div class="col-md-7">
+    <div class="card p-4 shadow-sm">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Patient list</h5>
+        <span id="count" class="badge bg-secondary">0 patients</span>
+      </div>
+      <ul id="list" class="list-group"></ul>
+      <p id="emptyMsg" class="text-muted text-center mt-3" style="display:none">No patients added yet.</p>
+    </div>
+  </div>
 
 </div>
 
 <script>
+  function showBanner(msg, type) {
+    const b = document.getElementById('banner');
+    b.className = 'alert alert-' + type;
+    b.textContent = msg;
+    b.style.display = 'block';
+    setTimeout(() => { b.style.display = 'none'; }, 4000);
+  }
 
-async function addPatient(){
-await fetch('/add_patient',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-name:document.getElementById("name").value,
-age:document.getElementById("age").value,
-doctor:document.getElementById("doctor").value
-})
-});
-load();
-}
+  async function addPatient() {
+    const name   = document.getElementById('newName').value.trim();
+    const age    = document.getElementById('newAge').value;
+    const doctor = document.getElementById('newDoctor').value.trim();
+    const btn    = document.getElementById('addBtn');
 
-async function load(){
-let r=await fetch('/patients');
-let data=await r.json();
+    if (!name) { showBanner('Patient name is required.', 'warning'); return; }
+    if (!age || Number(age) < 0 || Number(age) > 150) {
+      showBanner('Enter a valid age (0–150).', 'warning'); return;
+    }
+    if (!doctor) { showBanner('Doctor name is required.', 'warning'); return; }
 
-list.innerHTML="";
+    btn.disabled = true;
+    btn.textContent = 'Adding...';
 
-data.forEach(p=>{
-let li=document.createElement("li");
-li.className="list-group-item d-flex justify-content-between align-items-center";
+    try {
+      const res = await fetch('/add_patient', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, age: Number(age), doctor })
+      });
 
-li.innerHTML=`${p.name} | Age: ${p.age} | Doctor: ${p.doctor}`;
+      const data = await res.json();
+      if (!res.ok) { showBanner(data.error || 'Failed to add patient.', 'danger'); return; }
 
-let btn=document.createElement("button");
-btn.className="btn btn-danger btn-sm";
-btn.innerText="Delete";
+      showBanner('Patient added successfully.', 'success');
+      document.getElementById('newName').value   = '';
+      document.getElementById('newAge').value    = '';
+      document.getElementById('newDoctor').value = '';
+      loadPatients();
+    } catch (e) {
+      showBanner('Network error. Please try again.', 'danger');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Add patient';
+    }
+  }
 
-btn.onclick=async()=>{
-await fetch('/delete_patient/'+p.id,{method:'DELETE'});
-load();
-};
+  async function deletePatient(id, name) {
+    if (!confirm(`Delete patient "${name}"? This cannot be undone.`)) return;
 
-li.appendChild(btn);
-list.appendChild(li);
-});
-}
+    try {
+      const res = await fetch('/delete_patient/' + id, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) { showBanner(data.error || 'Failed to delete.', 'danger'); return; }
+      showBanner('Patient deleted.', 'success');
+      loadPatients();
+    } catch (e) {
+      showBanner('Network error.', 'danger');
+    }
+  }
 
-load();
+  async function loadPatients() {
+    try {
+      const res  = await fetch('/patients');
+      if (!res.ok) { showBanner('Failed to load patients.', 'danger'); return; }
+      const data = await res.json();
 
+      const list     = document.getElementById('list');
+      const emptyMsg = document.getElementById('emptyMsg');
+      const count    = document.getElementById('count');
+
+      list.innerHTML = '';
+      count.textContent = data.length + ' patient' + (data.length !== 1 ? 's' : '');
+
+      if (data.length === 0) { emptyMsg.style.display = 'block'; return; }
+      emptyMsg.style.display = 'none';
+
+      data.forEach(p => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        li.innerHTML = `
+          <div>
+            <strong>${escHtml(p.name)}</strong>
+            <small class="text-muted ms-2">Age: ${p.age} &middot; Dr. ${escHtml(p.doctor)}</small>
+          </div>`;
+
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-outline-danger btn-sm';
+        btn.textContent = 'Delete';
+        btn.onclick = () => deletePatient(p.id, p.name);
+        li.appendChild(btn);
+        list.appendChild(li);
+      });
+    } catch (e) {
+      showBanner('Failed to load patient list.', 'danger');
+    }
+  }
+
+  // Prevent XSS when inserting patient data into the DOM
+  function escHtml(str) {
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(String(str)));
+    return div.innerHTML;
+  }
+
+  loadPatients();
 </script>
 
 {% endblock %}

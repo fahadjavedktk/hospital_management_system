@@ -1,48 +1,96 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2 class="mb-4">🧾 Patient Prescription</h2>
+<h2 class="mb-4">Patient prescription</h2>
 
-<div class="card p-4 shadow col-md-6">
+<div id="banner" class="alert" style="display:none"></div>
 
-<h5>Patient: {{patient.name}}</h5>
+<div class="card p-4 shadow-sm col-md-6">
 
-<label class="mt-2">Medicine</label>
-<input id="medicine" class="form-control" placeholder="Enter medicine">
+  <div class="mb-3 p-3 bg-light rounded">
+    <strong>Patient:</strong> {{ patient.name | e }}<br>
+    <small class="text-muted">ID: {{ patient.id | int }}</small>
+  </div>
 
-<label class="mt-2">Quantity</label>
-<input id="qty" class="form-control" placeholder="Enter quantity">
+  <label class="form-label">Medicine</label>
+  <input id="medicine" class="form-control" placeholder="Enter medicine name" maxlength="100" autocomplete="off">
 
-<label class="mt-2">Lab Test (Optional)</label>
-<select id="test" class="form-select">
-<option value="">-- No Test --</option>
-{% for t in tests %}
-<option value="{{t}}">{{t}}</option>
-{% endfor %}
-</select>
+  <label class="form-label mt-3">Quantity</label>
+  <input id="qty" class="form-control" type="number" min="1" max="999" placeholder="e.g. 10">
 
-<button onclick="submitForm()" class="btn btn-success mt-3 w-100">
-Submit
-</button>
+  <label class="form-label mt-3">Lab test (optional)</label>
+  <select id="test" class="form-select">
+    <option value="">-- No test --</option>
+    {% for t in tests %}
+    <option value="{{ t | e }}">{{ t | e }}</option>
+    {% endfor %}
+  </select>
+
+  <button id="submitBtn"
+    data-pid="{{ patient.id | int }}"
+    onclick="submitForm(this)"
+    class="btn btn-success mt-4 w-100">
+    Submit prescription
+  </button>
 
 </div>
 
 <script>
-async function submitForm(){
-await fetch('/prescribe',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-patient_id: {{patient.id}},
-medicine: medicine.value,
-qty: qty.value,
-test: test.value
-})
-});
+  function showBanner(msg, type) {
+    const b = document.getElementById('banner');
+    b.className = 'alert alert-' + type;
+    b.textContent = msg;
+    b.style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
-alert("Prescription Saved");
-window.location="/dashboard";
-}
+  async function submitForm(btn) {
+    const medicine = document.getElementById('medicine').value.trim();
+    const qty      = document.getElementById('qty').value;
+    const test     = document.getElementById('test').value;
+    const pid      = btn.dataset.pid;
+
+    // Client-side validation
+    if (!medicine) {
+      showBanner('Medicine name is required.', 'warning'); return;
+    }
+    if (!qty || Number(qty) < 1) {
+      showBanner('Enter a valid quantity (minimum 1).', 'warning'); return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+      const res = await fetch('/prescribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patient_id: Number(pid),
+          medicine: medicine,
+          qty: Number(qty),
+          test: test
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        showBanner(data.error || 'Failed to save. Please try again.', 'danger');
+        return;
+      }
+
+      showBanner('Prescription saved successfully.', 'success');
+      // Brief pause so the doctor sees the success message before redirect
+      setTimeout(() => { window.location = '/dashboard'; }, 1500);
+
+    } catch (e) {
+      showBanner('Network error. Check your connection and try again.', 'danger');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Submit prescription';
+    }
+  }
 </script>
 
 {% endblock %}

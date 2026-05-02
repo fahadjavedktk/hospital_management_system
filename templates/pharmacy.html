@@ -1,66 +1,141 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2>💊 Pharmacy</h2>
+<h2 class="mb-4">Pharmacy</h2>
 
-<div class="row">
+<div id="banner" class="alert" style="display:none"></div>
 
-<div class="col-md-4">
-<div class="card p-3 shadow">
+<div class="row g-4">
 
-<label>Medicine Name</label>
-<input id="name" class="form-control" placeholder="Enter medicine">
+  <!-- ADD MEDICINE -->
+  <div class="col-md-4">
+    <div class="card p-4 shadow-sm">
+      <h5 class="mb-3">Add medicine</h5>
 
-<label class="mt-2">Stock</label>
-<input id="stock" class="form-control">
+      <label class="form-label">Medicine name</label>
+      <input id="medName" class="form-control" placeholder="e.g. Paracetamol" maxlength="100">
 
-<label class="mt-2">Price</label>
-<input id="price" class="form-control">
+      <label class="form-label mt-3">Stock (units)</label>
+      <input id="medStock" class="form-control" type="number" min="0" placeholder="e.g. 200">
 
-<button onclick="add()" class="btn btn-success mt-3 w-100">
-Add Medicine
-</button>
+      <label class="form-label mt-3">Price (PKR)</label>
+      <input id="medPrice" class="form-control" type="number" min="0" step="0.01" placeholder="e.g. 50.00">
 
-</div>
-</div>
+      <button id="addBtn" onclick="addMedicine()" class="btn btn-success mt-4 w-100">
+        Add medicine
+      </button>
+    </div>
+  </div>
 
-<div class="col-md-8">
-<div class="card p-3 shadow">
-
-<ul id="list" class="list-group"></ul>
-
-</div>
-</div>
+  <!-- MEDICINE LIST -->
+  <div class="col-md-8">
+    <div class="card p-4 shadow-sm">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Medicine inventory</h5>
+        <span id="count" class="badge bg-secondary"></span>
+      </div>
+      <div id="loading" class="text-muted">Loading...</div>
+      <ul id="list" class="list-group"></ul>
+      <p id="emptyMsg" class="text-muted text-center mt-3" style="display:none">No medicines added yet.</p>
+    </div>
+  </div>
 
 </div>
 
 <script>
-async function add(){
-await fetch('/add_med',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-name:name.value,
-stock:stock.value,
-price:price.value
-})
-});
-load();
-}
+  function showBanner(msg, type) {
+    const b = document.getElementById('banner');
+    b.className = 'alert alert-' + type;
+    b.textContent = msg;
+    b.style.display = 'block';
+    setTimeout(() => { b.style.display = 'none'; }, 4000);
+  }
 
-async function load(){
-let r=await fetch('/meds');
-let d=await r.json();
+  function escHtml(str) {
+    const d = document.createElement('div');
+    d.appendChild(document.createTextNode(String(str)));
+    return d.innerHTML;
+  }
 
-list.innerHTML="";
-d.forEach(m=>{
-let li=document.createElement("li");
-li.className="list-group-item";
-li.innerHTML=`${m.name} | Stock: ${m.stock} | Price: ${m.price}`;
-list.appendChild(li);
-});
-}
-load();
+  async function addMedicine() {
+    const name  = document.getElementById('medName').value.trim();
+    const stock = document.getElementById('medStock').value;
+    const price = document.getElementById('medPrice').value;
+    const btn   = document.getElementById('addBtn');
+
+    if (!name) { showBanner('Medicine name is required.', 'warning'); return; }
+    if (stock === '' || Number(stock) < 0) {
+      showBanner('Stock must be 0 or more.', 'warning'); return;
+    }
+    if (price === '' || Number(price) < 0) {
+      showBanner('Price must be 0 or more.', 'warning'); return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Adding...';
+
+    try {
+      const res = await fetch('/add_med', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, stock: Number(stock), price: Number(price) })
+      });
+      const data = await res.json();
+      if (!res.ok) { showBanner(data.error || 'Failed to add medicine.', 'danger'); return; }
+
+      showBanner('Medicine added.', 'success');
+      document.getElementById('medName').value  = '';
+      document.getElementById('medStock').value = '';
+      document.getElementById('medPrice').value = '';
+      loadMeds();
+    } catch (e) {
+      showBanner('Network error.', 'danger');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Add medicine';
+    }
+  }
+
+  async function loadMeds() {
+    const loadingEl = document.getElementById('loading');
+    const listEl    = document.getElementById('list');
+    const countEl   = document.getElementById('count');
+    const emptyEl   = document.getElementById('emptyMsg');
+
+    try {
+      const res = await fetch('/meds');
+      if (!res.ok) { loadingEl.textContent = 'Failed to load inventory.'; return; }
+
+      const data = await res.json();
+      loadingEl.style.display = 'none';
+      listEl.innerHTML = '';
+      countEl.textContent = data.length + ' item' + (data.length !== 1 ? 's' : '');
+
+      if (data.length === 0) { emptyEl.style.display = 'block'; return; }
+      emptyEl.style.display = 'none';
+
+      data.forEach(m => {
+        const isLow = m.stock < 20;
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        li.innerHTML = `
+          <div>
+            <strong>${escHtml(m.name)}</strong>
+            ${isLow ? '<span class="badge bg-danger ms-1">Low stock</span>' : ''}
+          </div>
+          <div class="text-end">
+            <span class="badge bg-secondary me-2">Stock: ${m.stock}</span>
+            <span class="badge bg-info text-dark">PKR ${Number(m.price).toFixed(2)}</span>
+          </div>`;
+        listEl.appendChild(li);
+      });
+    } catch (e) {
+      loadingEl.textContent = 'Network error.';
+      loadingEl.className = 'text-danger';
+    }
+  }
+
+  loadMeds();
 </script>
 
 {% endblock %}
