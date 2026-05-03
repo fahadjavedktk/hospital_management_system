@@ -9,14 +9,19 @@
 
   <div class="mb-3 p-3 bg-light rounded">
     <strong>Patient:</strong> {{ patient.name | e }}<br>
-    <small class="text-muted">ID: {{ patient.id | int }}</small>
+    <small class="text-muted">Doctor: {{ patient.doctor.name | e }}</small>
   </div>
 
   <label class="form-label">Medicine</label>
-  <input id="medicine" class="form-control" placeholder="Enter medicine name" maxlength="100" autocomplete="off">
+  <select id="medicine" class="form-select">
+    <option value="">-- Select medicine or type below --</option>
+  </select>
+  <input id="medicineCustom" class="form-control mt-2" placeholder="Or type medicine name manually" maxlength="100" autocomplete="off">
+  <small class="text-muted">Select from inventory above, or type a name if not listed.</small>
 
   <label class="form-label mt-3">Quantity</label>
   <input id="qty" class="form-control" type="number" min="1" max="999" placeholder="e.g. 10">
+  <small id="stockInfo" class="text-muted"></small>
 
   <label class="form-label mt-3">Lab test (optional)</label>
   <select id="test" class="form-select">
@@ -44,15 +49,44 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  async function submitForm(btn) {
-    const medicine = document.getElementById('medicine').value.trim();
-    const qty      = document.getElementById('qty').value;
-    const test     = document.getElementById('test').value;
-    const pid      = btn.dataset.pid;
+  // Load medicine dropdown from pharmacy inventory
+  async function loadMeds() {
+    try {
+      const res = await fetch('/meds');
+      if (!res.ok) return;
+      const data = await res.json();
+      const sel = document.getElementById('medicine');
+      data.forEach(m => {
+        const o = document.createElement('option');
+        o.value = m.name;
+        o.dataset.stock = m.stock;
+        o.textContent = `${m.name} — Stock: ${m.stock} — PKR ${Number(m.price).toFixed(2)}`;
+        sel.appendChild(o);
+      });
+    } catch(e) {}
+  }
 
-    // Client-side validation
+  document.getElementById('medicine').addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    const info = document.getElementById('stockInfo');
+    if (opt && opt.dataset.stock !== undefined) {
+      info.textContent = `Available stock: ${opt.dataset.stock} units`;
+      document.getElementById('medicineCustom').value = '';
+    } else {
+      info.textContent = '';
+    }
+  });
+
+  async function submitForm(btn) {
+    const selectedMed = document.getElementById('medicine').value.trim();
+    const customMed   = document.getElementById('medicineCustom').value.trim();
+    const medicine    = selectedMed || customMed;
+    const qty         = document.getElementById('qty').value;
+    const test        = document.getElementById('test').value;
+    const pid         = btn.dataset.pid;
+
     if (!medicine) {
-      showBanner('Medicine name is required.', 'warning'); return;
+      showBanner('Please select a medicine or type one manually.', 'warning'); return;
     }
     if (!qty || Number(qty) < 1) {
       showBanner('Enter a valid quantity (minimum 1).', 'warning'); return;
@@ -67,9 +101,9 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           patient_id: Number(pid),
-          medicine: medicine,
-          qty: Number(qty),
-          test: test
+          medicine:   medicine,
+          qty:        Number(qty),
+          test:       test
         })
       });
 
@@ -81,7 +115,6 @@
       }
 
       showBanner('Prescription saved successfully.', 'success');
-      // Brief pause so the doctor sees the success message before redirect
       setTimeout(() => { window.location = '/dashboard'; }, 1500);
 
     } catch (e) {
@@ -91,6 +124,8 @@
       btn.textContent = 'Submit prescription';
     }
   }
+
+  loadMeds();
 </script>
 
 {% endblock %}

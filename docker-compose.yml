@@ -1,0 +1,42 @@
+
+services:
+
+  web:
+    build: .
+    container_name: hospital_app
+    restart: always
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - hospital_net
+
+  db:
+    image: postgres:15-alpine
+    container_name: hospital_db
+    restart: always
+    environment:
+      POSTGRES_DB: hospital
+      POSTGRES_USER: hospital_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - hospital_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hospital_user -d hospital"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  pg_data:
+
+networks:
+  hospital_net:
+    driver: bridge

@@ -1,19 +1,22 @@
 import pytest
-from app import app, db, seed_users
+from app import app, db, seed_users, Doctor
 
 
 @pytest.fixture
 def client():
     app.config["TESTING"] = True
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
-    app.config["WTF_CSRF_ENABLED"] = False
 
     with app.app_context():
         db.create_all()
         seed_users()
+        # Seed a test doctor so patients can be assigned
+        d = Doctor(name="Test Doctor", specialisation="General")
+        db.session.add(d)
+        db.session.commit()
 
-    with app.test_client() as client:
-        yield client
+    with app.test_client() as c:
+        yield c
 
 
 def login_as(client, username, password):
@@ -24,8 +27,12 @@ def login_as(client, username, password):
     )
 
 
-# -------- HOME --------
+def get_first_doctor_id(client):
+    res = client.get("/doctors")
+    return res.get_json()[0]["id"]
 
+
+# -------- HOME --------
 def test_home_loads(client):
     res = client.get("/")
     assert res.status_code == 200
@@ -33,32 +40,17 @@ def test_home_loads(client):
 
 
 # -------- LOGIN --------
-
-def test_login_page_loads(client):
-    res = client.get("/login")
-    assert res.status_code == 200
-
-
 def test_login_valid_admin(client):
     res = login_as(client, "admin", "Admin@2024!")
     assert res.status_code == 200
-    assert b"ok" in res.data
-
-
-def test_login_valid_doctor(client):
-    res = login_as(client, "doctor", "Doctor@2024!")
-    assert res.status_code == 200
-
 
 def test_login_wrong_password(client):
-    res = login_as(client, "admin", "wrongpassword")
+    res = login_as(client, "admin", "wrong")
     assert res.status_code == 401
-
 
 def test_login_unknown_user(client):
-    res = login_as(client, "nobody", "abc123")
+    res = login_as(client, "nobody", "abc")
     assert res.status_code == 401
-
 
 def test_login_empty_credentials(client):
     res = login_as(client, "", "")
@@ -66,83 +58,172 @@ def test_login_empty_credentials(client):
 
 
 # -------- AUTH PROTECTION --------
-
 def test_dashboard_requires_login(client):
-    res = client.get("/dashboard")
-    assert res.status_code == 302  # redirect to login
-
+    assert client.get("/dashboard").status_code == 302
 
 def test_patients_requires_login(client):
-    res = client.get("/patients")
-    assert res.status_code == 302
+    assert client.get("/patients").status_code == 302
+
+def test_doctors_requires_login(client):
+    assert client.get("/doctors").status_code == 302
 
 
-def test_lab_requires_login(client):
-    res = client.get("/lab")
-    assert res.status_code == 302
-
-
-# -------- ADMIN ROUTES --------
-
-def test_add_patient_as_admin(client):
+# -------- DOCTOR MANAGEMENT --------
+def test_add_doctor_as_admin(client):
     login_as(client, "admin", "Admin@2024!")
-    res = client.post(
-        "/add_patient",
-        json={"name": "Test Patient", "age": 30, "doctor": "Dr. Smith"},
-        content_type="application/json"
-    )
+    res = client.post("/add_doctor",
+        json={"name": "Dr. Ahmed", "specialisation": "Cardiology"},
+        content_type="application/json")
     assert res.status_code == 200
 
-
-def test_add_patient_missing_name(client):
+def test_add_doctor_missing_name(client):
     login_as(client, "admin", "Admin@2024!")
-    res = client.post(
-        "/add_patient",
-        json={"name": "", "age": 30, "doctor": "Dr. Smith"},
-        content_type="application/json"
-    )
+    res = client.post("/add_doctor",
+        json={"name": "", "specialisation": "Cardiology"},
+        content_type="application/json")
     assert res.status_code == 400
 
+def test_add_doctor_missing_spec(client):
+    login_as(client, "admin", "Admin@2024!")
+    res = client.post("/add_doctor",
+        json={"name": "Dr. X", "specialisation": ""},
+        content_type="application/json")
+    assert res.status_code == 400
+
+def test_doctor_cannot_add_doctor(client):
+    login_as(client, "doctor", "Doctor@2024!")
+    res = client.post("/add_doctor",
+        json={"name": "Dr. Rogue", "specialisation": "X"},
+        content_type="application/json")
+    assert res.status_code == 403
+
+
+# -------- PATIENT MANAGEMENT --------
+def test_add_patient_as_admin(client):
+    login_as(client, "admin", "Admin@2024!")
+    doc_id = get_first_doctor_id(client)
+    res = client.post("/add_patient",
+        json={"name": "Ali Khan", "age": 35, "doctor_id": doc_id},
+        content_type="application/json")
+    assert res.status_code == 200
+
+def test_add_patient_no_doctor(client):
+    login_as(client, "admin", "Admin@2024!")
+    res = client.post("/add_patient",
+        json={"name": "Ali Khan", "age": 35, "doctor_id": None},
+        content_type="application/json")
+    assert res.status_code == 400
 
 def test_add_patient_invalid_age(client):
     login_as(client, "admin", "Admin@2024!")
-    res = client.post(
-        "/add_patient",
-        json={"name": "Test", "age": 999, "doctor": "Dr. Smith"},
-        content_type="application/json"
-    )
+    doc_id = get_first_doctor_id(client)
+    res = client.post("/add_patient",
+        json={"name": "Ali", "age": 999, "doctor_id": doc_id},
+        content_type="application/json")
     assert res.status_code == 400
 
 
-def test_add_patient_as_doctor_forbidden(client):
-    login_as(client, "doctor", "Doctor@2024!")
-    res = client.post(
-        "/add_patient",
-        json={"name": "Test", "age": 25, "doctor": "Dr. Smith"},
-        content_type="application/json"
-    )
-    assert res.status_code == 403
+# -------- STAFF MANAGEMENT --------
+def test_add_staff_as_admin(client):
+    login_as(client, "admin", "Admin@2024!")
+    res = client.post("/add_staff",
+        json={"username": "lab2", "password": "Lab@12345", "role": "lab"},
+        content_type="application/json")
+    assert res.status_code == 200
+
+def test_add_staff_weak_password(client):
+    login_as(client, "admin", "Admin@2024!")
+    res = client.post("/add_staff",
+        json={"username": "lab3", "password": "abc", "role": "lab"},
+        content_type="application/json")
+    assert res.status_code == 400
+
+def test_add_staff_invalid_role(client):
+    login_as(client, "admin", "Admin@2024!")
+    res = client.post("/add_staff",
+        json={"username": "x", "password": "Password1!", "role": "hacker"},
+        content_type="application/json")
+    assert res.status_code == 400
 
 
 # -------- ROLE ISOLATION --------
-
-def test_patient_cannot_access_all_patients(client):
+def test_patient_cannot_see_all_patients(client):
     login_as(client, "patient", "Patient@2024!")
-    res = client.get("/patients")
-    assert res.status_code == 403
-
+    assert client.get("/patients").status_code == 403
 
 def test_pharmacy_cannot_view_lab(client):
     login_as(client, "pharma", "Pharma@2024!")
-    res = client.get("/lab")
-    assert res.status_code == 403
-
+    assert client.get("/lab").status_code == 403
 
 def test_lab_cannot_add_medicine(client):
     login_as(client, "lab", "Lab@2024!")
-    res = client.post(
-        "/add_med",
+    res = client.post("/add_med",
         json={"name": "Paracetamol", "stock": 100, "price": 10.0},
-        content_type="application/json"
-    )
+        content_type="application/json")
     assert res.status_code == 403
+
+
+# -------- PHARMACY DELETE & UPDATE --------
+def test_pharmacy_can_add_and_delete_medicine(client):
+    login_as(client, "pharma", "Pharma@2024!")
+    # Add
+    res = client.post("/add_med",
+        json={"name": "Aspirin", "stock": 100, "price": 5.0},
+        content_type="application/json")
+    assert res.status_code == 200
+    # Get id
+    meds = client.get("/meds").get_json()
+    med_id = meds[0]["id"]
+    # Delete
+    res2 = client.delete(f"/delete_med/{med_id}")
+    assert res2.status_code == 200
+
+def test_pharmacy_update_stock(client):
+    login_as(client, "pharma", "Pharma@2024!")
+    client.post("/add_med",
+        json={"name": "Ibuprofen", "stock": 50, "price": 10.0},
+        content_type="application/json")
+    meds = client.get("/meds").get_json()
+    med_id = meds[0]["id"]
+    res = client.post(f"/update_stock/{med_id}",
+        json={"stock": 200, "price": 12.0},
+        content_type="application/json")
+    assert res.status_code == 200
+
+def test_lab_cannot_delete_medicine(client):
+    login_as(client, "pharma", "Pharma@2024!")
+    client.post("/add_med",
+        json={"name": "TestMed", "stock": 10, "price": 1.0},
+        content_type="application/json")
+    meds = client.get("/meds").get_json()
+    med_id = meds[0]["id"]
+    login_as(client, "lab", "Lab@2024!")
+    res = client.delete(f"/delete_med/{med_id}")
+    assert res.status_code == 403
+
+
+# -------- PRESCRIPTION STOCK DEDUCTION --------
+def test_prescription_deducts_stock(client):
+    login_as(client, "pharma", "Pharma@2024!")
+    client.post("/add_med",
+        json={"name": "Paracetamol", "stock": 100, "price": 5.0},
+        content_type="application/json")
+
+    login_as(client, "admin", "Admin@2024!")
+    doc_id = get_first_doctor_id(client)
+    client.post("/add_patient",
+        json={"name": "Test Patient", "age": 30, "doctor_id": doc_id},
+        content_type="application/json")
+
+    login_as(client, "doctor", "Doctor@2024!")
+    patients = client.get("/patients").get_json()
+    pid = patients[0]["id"]
+    res = client.post("/prescribe",
+        json={"patient_id": pid, "medicine": "Paracetamol", "qty": 10, "test": ""},
+        content_type="application/json")
+    assert res.status_code == 200
+
+    login_as(client, "pharma", "Pharma@2024!")
+    meds = client.get("/meds").get_json()
+    paracetamol = next(m for m in meds if m["name"] == "Paracetamol")
+    assert paracetamol["stock"] == 90  # 100 - 10

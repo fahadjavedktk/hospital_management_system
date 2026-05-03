@@ -503,8 +503,16 @@ def prescribe():
                 test=test,
                 result="Pending"
             ))
+        # Deduct stock if medicine exists in inventory
+        med_record = Medicine.query.filter(
+            db.func.lower(Medicine.name) == medicine.lower()
+        ).first()
+        if med_record:
+            if med_record.stock < qty:
+                return jsonify({"error": f"Insufficient stock for {medicine}. Available: {med_record.stock}"}), 400
+            med_record.stock -= qty
         db.session.commit()
-        audit(f"PRESCRIBE patient_id={patient.id} medicine={medicine}")
+        audit(f"PRESCRIBE patient_id={patient.id} medicine={medicine} qty={qty}")
         return jsonify({"msg": "Saved"})
     except Exception:
         db.session.rollback()
@@ -521,12 +529,18 @@ def lab():
     denied = role_required("lab", "doctor", "admin")
     if denied:
         return denied
+    requests = (
+        db.session.query(LabRequest, Patient)
+        .join(Patient, LabRequest.patient_id == Patient.id)
+        .all()
+    )
     return jsonify([{
-        "id":         l.id,
-        "patient_id": l.patient_id,
-        "test":       l.test,
-        "result":     l.result
-    } for l in LabRequest.query.all()])
+        "id":           l.id,
+        "patient_id":   l.patient_id,
+        "patient_name": p.name,
+        "test":         l.test,
+        "result":       l.result
+    } for l, p in requests])
 
 
 @app.route("/lab_update", methods=["POST"])
@@ -601,6 +615,49 @@ def meds():
         "stock": m.stock,
         "price": m.price
     } for m in Medicine.query.all()])
+
+
+@app.route("/delete_med/<int:med_id>", methods=["DELETE"])
+@login_required
+def delete_med(med_id):
+    denied = role_required("pharmacy")
+    if denied:
+        return denied
+    med = Medicine.query.get_or_404(med_id)
+    try:
+        db.session.delete(med)
+        db.session.commit()
+        audit(f"DELETE_MEDICINE id={med_id} name={med.name}")
+        return jsonify({"msg": "Medicine deleted"})
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "Failed to delete medicine"}), 500
+
+
+@app.route("/update_stock/<int:med_id>", methods=["POST"])
+@login_required
+def update_stock(med_id):
+    denied = role_required("pharmacy")
+    if denied:
+        return denied
+    data = request.get_json(silent=True) or {}
+    med = Medicine.query.get_or_404(med_id)
+    try:
+        new_stock = int(data.get("stock", 0))
+        new_price = float(data.get("price", med.price))
+        if new_stock < 0 or new_price < 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({"error": "Stock and price must be valid positive numbers"}), 400
+    try:
+        med.stock = new_stock
+        med.price = new_price
+        db.session.commit()
+        audit(f"UPDATE_STOCK id={med_id} stock={new_stock} price={new_price}")
+        return jsonify({"msg": "Updated"})
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "Failed to update"}), 500
 
 
 # ======================================================

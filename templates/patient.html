@@ -8,6 +8,16 @@
 
 <div id="content" style="display:none">
 
+  <!-- Patient summary card -->
+  <div class="card p-3 shadow-sm mb-4">
+    <div class="d-flex align-items-center gap-3">
+      <div>
+        <h5 class="mb-0" id="patientName"></h5>
+        <small class="text-muted">Assigned doctor: <strong id="patientDoctor"></strong></small>
+      </div>
+    </div>
+  </div>
+
   <div class="row g-4">
 
     <!-- Lab Results -->
@@ -15,7 +25,7 @@
       <div class="card p-4 shadow-sm h-100">
         <h5 class="mb-3">Lab results</h5>
         <ul id="labResults" class="list-group"></ul>
-        <p id="noLabs" class="text-muted" style="display:none">No lab tests ordered.</p>
+        <p id="noLabs" class="text-muted" style="display:none">No lab tests ordered yet.</p>
       </div>
     </div>
 
@@ -24,7 +34,7 @@
       <div class="card p-4 shadow-sm h-100">
         <h5 class="mb-3">Prescriptions</h5>
         <ul id="presResults" class="list-group"></ul>
-        <p id="noPres" class="text-muted" style="display:none">No prescriptions issued.</p>
+        <p id="noPres" class="text-muted" style="display:none">No prescriptions issued yet.</p>
       </div>
     </div>
 
@@ -57,6 +67,10 @@
       const data = await res.json();
       loadingEl.style.display = 'none';
       contentEl.style.display = 'block';
+
+      // Patient + doctor summary
+      document.getElementById('patientName').textContent   = data.patient;
+      document.getElementById('patientDoctor').textContent = data.doctor || 'Not assigned';
 
       // Lab results
       const labList = document.getElementById('labResults');

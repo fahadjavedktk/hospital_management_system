@@ -80,7 +80,8 @@
         const isPending = x.result === 'Pending';
         li.innerHTML = `
           <div>
-            <strong>Patient #${x.patient_id}</strong>
+            <strong>${escHtml(x.patient_name)}</strong>
+            <span class="text-muted ms-1">(#${x.patient_id})</span>
             &mdash; ${escHtml(x.test)}
             <span class="badge ms-2 ${isPending ? 'bg-warning text-dark' : 'bg-success'}">
               ${escHtml(x.result)}

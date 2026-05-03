@@ -42,6 +42,22 @@
 
 </div>
 
+<!-- Edit modal (inline, no display:none so it works during streaming) -->
+<div id="editModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:12px; padding:2rem; width:340px; max-width:90vw;">
+    <h5 class="mb-3">Update stock &amp; price</h5>
+    <input type="hidden" id="editId">
+    <label class="form-label">Stock (units)</label>
+    <input id="editStock" class="form-control" type="number" min="0">
+    <label class="form-label mt-3">Price (PKR)</label>
+    <input id="editPrice" class="form-control" type="number" min="0" step="0.01">
+    <div class="d-flex gap-2 mt-4">
+      <button onclick="saveEdit()" class="btn btn-primary flex-grow-1">Save</button>
+      <button onclick="closeEdit()" class="btn btn-outline-secondary flex-grow-1">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <script>
   function showBanner(msg, type) {
     const b = document.getElementById('banner');
@@ -64,15 +80,10 @@
     const btn   = document.getElementById('addBtn');
 
     if (!name) { showBanner('Medicine name is required.', 'warning'); return; }
-    if (stock === '' || Number(stock) < 0) {
-      showBanner('Stock must be 0 or more.', 'warning'); return;
-    }
-    if (price === '' || Number(price) < 0) {
-      showBanner('Price must be 0 or more.', 'warning'); return;
-    }
+    if (stock === '' || Number(stock) < 0) { showBanner('Stock must be 0 or more.', 'warning'); return; }
+    if (price === '' || Number(price) < 0) { showBanner('Price must be 0 or more.', 'warning'); return; }
 
-    btn.disabled = true;
-    btn.textContent = 'Adding...';
+    btn.disabled = true; btn.textContent = 'Adding...';
 
     try {
       const res = await fetch('/add_med', {
@@ -82,7 +93,6 @@
       });
       const data = await res.json();
       if (!res.ok) { showBanner(data.error || 'Failed to add medicine.', 'danger'); return; }
-
       showBanner('Medicine added.', 'success');
       document.getElementById('medName').value  = '';
       document.getElementById('medStock').value = '';
@@ -91,8 +101,55 @@
     } catch (e) {
       showBanner('Network error.', 'danger');
     } finally {
-      btn.disabled = false;
-      btn.textContent = 'Add medicine';
+      btn.disabled = false; btn.textContent = 'Add medicine';
+    }
+  }
+
+  function openEdit(id, stock, price) {
+    document.getElementById('editId').value    = id;
+    document.getElementById('editStock').value = stock;
+    document.getElementById('editPrice').value = price;
+    document.getElementById('editModal').style.display = 'flex';
+  }
+
+  function closeEdit() {
+    document.getElementById('editModal').style.display = 'none';
+  }
+
+  async function saveEdit() {
+    const id    = document.getElementById('editId').value;
+    const stock = Number(document.getElementById('editStock').value);
+    const price = Number(document.getElementById('editPrice').value);
+
+    if (isNaN(stock) || stock < 0) { showBanner('Enter a valid stock number.', 'warning'); return; }
+    if (isNaN(price) || price < 0) { showBanner('Enter a valid price.', 'warning'); return; }
+
+    try {
+      const res = await fetch('/update_stock/' + id, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stock, price })
+      });
+      const data = await res.json();
+      if (!res.ok) { showBanner(data.error || 'Update failed.', 'danger'); return; }
+      showBanner('Stock updated.', 'success');
+      closeEdit();
+      loadMeds();
+    } catch (e) {
+      showBanner('Network error.', 'danger');
+    }
+  }
+
+  async function deleteMed(id, name) {
+    if (!confirm(`Delete "${name}" from inventory? This cannot be undone.`)) return;
+    try {
+      const res = await fetch('/delete_med/' + id, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) { showBanner(data.error || 'Failed to delete.', 'danger'); return; }
+      showBanner('Medicine deleted.', 'success');
+      loadMeds();
+    } catch (e) {
+      showBanner('Network error.', 'danger');
     }
   }
 
@@ -123,9 +180,11 @@
             <strong>${escHtml(m.name)}</strong>
             ${isLow ? '<span class="badge bg-danger ms-1">Low stock</span>' : ''}
           </div>
-          <div class="text-end">
-            <span class="badge bg-secondary me-2">Stock: ${m.stock}</span>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-secondary">Stock: ${m.stock}</span>
             <span class="badge bg-info text-dark">PKR ${Number(m.price).toFixed(2)}</span>
+            <button class="btn btn-outline-secondary btn-sm" onclick="openEdit(${m.id},${m.stock},${m.price})">Edit</button>
+            <button class="btn btn-outline-danger btn-sm" onclick="deleteMed(${m.id},'${escHtml(m.name)}')">Delete</button>
           </div>`;
         listEl.appendChild(li);
       });
