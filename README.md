@@ -239,4 +239,53 @@ MIT — free to use and modify.
 
 ---
 
-*Built with Flask · SQLAlchemy · Bootstrap 5 · Docker · GitHub Actions*
+---
+
+## Full Technology Stack
+
+### Backend
+- **Python 3.10** — core programming language
+- **Flask 3.0.3** — web framework, routing, templating
+- **Flask-SQLAlchemy 3.1.1** — ORM for database models and queries
+- **Flask-Login 0.6.3** — session management, login/logout, auth protection
+- **Werkzeug 3.0.3** — password hashing (bcrypt), WSGI utilities
+- **python-dotenv 1.0.1** — loads environment variables from `.env` file
+- **Gunicorn 22.0.0** — production WSGI server (replaces Flask dev server)
+- **psycopg2-binary 2.9.9** — PostgreSQL database driver
+
+### Database
+- **SQLite** — development database, zero setup, auto-created on first run
+- **PostgreSQL 15** — production database, handles concurrent users
+
+### Frontend
+- **Bootstrap 5.3** — responsive grid, components, utility classes
+- **Bootstrap Icons 1.11** — icon library used throughout the UI
+- **Vanilla JavaScript (ES6+)** — all interactivity, fetch API calls, DOM manipulation
+- **CSS3** — custom animations (fadeIn, slideUp, popIn, shake, float, pulse, spin)
+
+### DevOps & Infrastructure
+- **Docker** — containerises the app into a portable image
+- **Docker Compose** — orchestrates app + PostgreSQL containers together
+- **GitHub Actions** — CI/CD pipeline, runs on every push to main
+- **Gunicorn** — 4-worker production server inside Docker
+
+### CI/CD Pipeline Tools
+- **flake8** — Python code style linter
+- **bandit** — Python security vulnerability scanner
+- **pytest 8.2.2** — test framework
+- **pytest-flask 1.3.0** — Flask-specific test utilities
+- **pytest-cov** — test coverage reporting
+- **curl** — container smoke test (verifies app responds after Docker build)
+
+### Security
+- **Werkzeug bcrypt** — password hashing
+- **Flask sessions** — signed with `SECRET_KEY`, expire after 8 hours
+- **Role-based access control** — enforced at backend on every route
+- **Audit logging** — SQLAlchemy model recording every sensitive action
+- **Input validation** — all POST routes validate before touching database
+- **Environment variables** — secrets never hardcoded in source code
+
+### Development Tools
+- **VS Code** — code editor
+- **Git + GitHub** — version control and repository hosting
+- **Virtual environment (venv)** — isolated Python dependency management
