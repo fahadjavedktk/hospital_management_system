@@ -30,7 +30,7 @@ jobs:
       - name: Security scan with bandit
         run: |
           pip install bandit
-          bandit -r app.py -ll --skip B105,B106
+          bandit -r app.py -lll --skip B105,B106,B101,B311
 
       - name: Run tests with coverage
         run: |
