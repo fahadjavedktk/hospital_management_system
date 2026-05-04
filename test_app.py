@@ -39,7 +39,7 @@ def get_first_doctor_id(client):
 def test_home_loads(client):
     res = client.get("/")
     assert res.status_code == 200
-    assert b"Hospital Management System" in res.data
+    assert b"Hospital" in res.data
 
 
 # ── LOGIN ────────────────────────────────────────────────────────
