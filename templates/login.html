@@ -3,92 +3,117 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - Hospital MS</title>
+  <title>Login — Hospital MS</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body { background: #f4f6f9; }
-    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-    .login-card { background: #fff; border-radius: 16px; padding: 2.5rem 2rem; width: 100%; max-width: 400px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
-    .login-card h3 { font-weight: 600; margin-bottom: 1.5rem; text-align: center; }
-    .btn-submit { border-radius: 8px; padding: .65rem; font-size: 15px; }
-    #errorMsg { display: none; }
-    #submitBtn { position: relative; }
-    .spinner-border { width: 1rem; height: 1rem; border-width: 2px; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+    .login-card{background:#fff;border-radius:24px;padding:2.5rem 2rem;width:100%;max-width:420px;box-shadow:0 32px 64px rgba(0,0,0,.25);animation:popIn .4s cubic-bezier(.34,1.56,.64,1) both}
+    @keyframes popIn{from{opacity:0;transform:scale(.92) translateY(20px)}to{opacity:1;transform:none}}
+    .login-header{text-align:center;margin-bottom:2rem}
+    .login-icon{width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#2563eb,#60a5fa);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 1rem;box-shadow:0 8px 20px rgba(37,99,235,.35)}
+    .login-title{font-size:22px;font-weight:700;color:#0f172a}
+    .login-sub{font-size:13px;color:#64748b;margin-top:4px}
+    .form-group{margin-bottom:1rem}
+    .form-label{font-size:13px;font-weight:500;color:#374151;display:block;margin-bottom:5px}
+    .input-wrap{position:relative}
+    .input-wrap i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:16px;pointer-events:none}
+    .form-control{width:100%;padding:11px 13px 11px 38px;border:1.5px solid #e2e8f0;border-radius:12px;font-size:14px;transition:all .2s;background:#fafbfc;color:#1e293b}
+    .form-control:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12);outline:none;background:#fff}
+    .btn-login{width:100%;padding:12px;background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;margin-top:.5rem;display:flex;align-items:center;justify-content:center;gap:8px}
+    .btn-login:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(37,99,235,.4)}
+    .btn-login:active{transform:none}
+    .btn-login:disabled{opacity:.65;transform:none;cursor:not-allowed}
+    .error-msg{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:1rem;display:none;animation:shake .4s ease}
+    @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+    .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .back-link{text-align:center;margin-top:1.25rem;font-size:13px;color:#64748b}
+    .back-link a{color:#2563eb;text-decoration:none;font-weight:500}
+    .back-link a:hover{text-decoration:underline}
   </style>
 </head>
 <body>
-<div class="login-wrap">
-  <div class="login-card">
-    <h3>&#127973; Hospital MS</h3>
+<div class="login-card">
+  <div class="login-header">
+    <div class="login-icon">&#127973;</div>
+    <div class="login-title">Welcome back</div>
+    <div class="login-sub">Sign in to Hospital MS</div>
+  </div>
 
-    <div id="errorMsg" class="alert alert-danger py-2"></div>
+  <div class="error-msg" id="errorMsg"></div>
 
-    <div class="mb-3">
-      <label class="form-label fw-500">Username</label>
+  <div class="form-group">
+    <label class="form-label">Username</label>
+    <div class="input-wrap">
+      <i>&#128100;</i>
       <input id="username" class="form-control" placeholder="Enter username" autocomplete="username" maxlength="80">
     </div>
+  </div>
 
-    <div class="mb-4">
-      <label class="form-label fw-500">Password</label>
+  <div class="form-group">
+    <label class="form-label">Password</label>
+    <div class="input-wrap">
+      <i>&#128274;</i>
       <input id="password" type="password" class="form-control" placeholder="Enter password" autocomplete="current-password" maxlength="200">
     </div>
-
-    <button id="submitBtn" onclick="login()" class="btn btn-primary w-100 btn-submit">
-      Login
-    </button>
   </div>
+
+  <button id="loginBtn" onclick="login()" class="btn-login">
+    <div class="spinner" id="spinner"></div>
+    <span id="btnText">Sign in</span>
+  </button>
+
+  <div class="back-link"><a href="/">&#8592; Back to home</a></div>
 </div>
 
 <script>
   const usernameEl = document.getElementById('username');
   const passwordEl = document.getElementById('password');
-  const errorEl   = document.getElementById('errorMsg');
-  const submitBtn = document.getElementById('submitBtn');
+  const errorEl    = document.getElementById('errorMsg');
+  const loginBtn   = document.getElementById('loginBtn');
+  const spinner    = document.getElementById('spinner');
+  const btnText    = document.getElementById('btnText');
 
-  // Allow pressing Enter to submit
   [usernameEl, passwordEl].forEach(el => {
     el.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
   });
 
+  function showError(msg) {
+    errorEl.textContent = msg;
+    errorEl.style.display = 'block';
+    errorEl.style.animation = 'none';
+    errorEl.offsetHeight;
+    errorEl.style.animation = 'shake .4s ease';
+  }
+
   async function login() {
     const username = usernameEl.value.trim();
     const password = passwordEl.value;
-
     errorEl.style.display = 'none';
 
-    if (!username || !password) {
-      showError('Please enter your username and password.');
-      return;
-    }
+    if (!username || !password) { showError('Please enter your username and password.'); return; }
 
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="spinner-border me-2"></span>Logging in...';
+    loginBtn.disabled = true;
+    spinner.style.display = 'block';
+    btnText.textContent = 'Signing in...';
 
     try {
-      const res = await fetch('/login', {
+      const res  = await fetch('/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       });
-
       const data = await res.json();
-
-      if (res.ok) {
-        window.location = '/dashboard';
-      } else {
-        showError(data.error || 'Invalid credentials. Please try again.');
-      }
+      if (res.ok) { window.location = '/dashboard'; }
+      else { showError(data.error || 'Invalid credentials. Please try again.'); }
     } catch (e) {
       showError('Network error. Please check your connection.');
     } finally {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = 'Login';
+      loginBtn.disabled = false;
+      spinner.style.display = 'none';
+      btnText.textContent = 'Sign in';
     }
-  }
-
-  function showError(msg) {
-    errorEl.textContent = msg;
-    errorEl.style.display = 'block';
   }
 </script>
 </body>

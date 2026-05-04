@@ -1,71 +1,54 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2 class="mb-4">Doctor panel</h2>
+<div class="page-title"><i class="bi bi-clipboard2-pulse"></i> Doctor Panel</div>
+<div id="banner" class="alert-banner"></div>
 
-<div id="banner" class="alert" style="display:none"></div>
-
-<div class="card p-4 shadow-sm">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="mb-0">Your patients</h5>
-    <span id="count" class="badge bg-secondary"></span>
-  </div>
-
-  <div id="loading" class="text-muted">Loading patients...</div>
-  <ul id="patients" class="list-group"></ul>
-  <p id="emptyMsg" class="text-muted text-center mt-3" style="display:none">No patients found.</p>
+<div class="hcard">
+  <div class="hcard-title"><i class="bi bi-people"></i> Your patients <span id="count" class="badge-info ms-2" style="font-size:11px;padding:3px 10px;border-radius:20px"></span></div>
+  <div id="loading" class="loading-state"><div class="spinner"></div> Loading patients...</div>
+  <div id="patientList"></div>
+  <div id="emptyMsg" class="empty-state" style="display:none"><i class="bi bi-people"></i><p>No patients found</p></div>
 </div>
 
 <script>
-  function escHtml(str) {
-    const d = document.createElement('div');
-    d.appendChild(document.createTextNode(String(str)));
-    return d.innerHTML;
-  }
+function escHtml(s){const d=document.createElement('div');d.appendChild(document.createTextNode(String(s)));return d.innerHTML;}
 
-  async function load() {
-    const loadingEl = document.getElementById('loading');
-    const listEl    = document.getElementById('patients');
-    const countEl   = document.getElementById('count');
-    const emptyEl   = document.getElementById('emptyMsg');
-
-    try {
-      const res = await fetch('/patients');
-      if (!res.ok) {
-        loadingEl.textContent = 'Failed to load patients.';
-        loadingEl.className = 'text-danger';
-        return;
-      }
-
-      const data = await res.json();
-      loadingEl.style.display = 'none';
-      listEl.innerHTML = '';
-      countEl.textContent = data.length + ' patient' + (data.length !== 1 ? 's' : '');
-
-      if (data.length === 0) { emptyEl.style.display = 'block'; return; }
-      emptyEl.style.display = 'none';
-
-      data.forEach(p => {
-        const li = document.createElement('li');
-        li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-        li.style.cursor = 'pointer';
-        li.innerHTML = `
+async function load(){
+  const loadEl=document.getElementById('loading');
+  const listEl=document.getElementById('patientList');
+  const emptyEl=document.getElementById('emptyMsg');
+  const countEl=document.getElementById('count');
+  try{
+    const res=await fetch('/patients');
+    if(!res.ok){loadEl.textContent='Failed to load patients.';loadEl.style.color='#dc2626';return;}
+    const data=await res.json();
+    loadEl.style.display='none';
+    countEl.textContent=data.length+' patient'+(data.length!==1?'s':'');
+    if(data.length===0){emptyEl.style.display='block';return;}
+    emptyEl.style.display='none';
+    data.forEach((p,i)=>{
+      const div=document.createElement('div');
+      div.className='hlist-item';
+      div.style.cursor='pointer';
+      div.style.animationDelay=(i*0.06)+'s';
+      div.innerHTML=`
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:40px;height:40px;border-radius:12px;background:#eff6ff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:#2563eb;flex-shrink:0">${escHtml(p.name[0].toUpperCase())}</div>
           <div>
-            <strong>${escHtml(p.name)}</strong>
-            <small class="text-muted ms-2">Age: ${p.age}</small>
-            <small class="text-muted ms-2">&middot; Dr. ${escHtml(p.doctor)}</small>
+            <div style="font-weight:600;font-size:14px">${escHtml(p.name)}</div>
+            <div style="font-size:12px;color:#64748b">Age: ${p.age} &middot; Dr. ${escHtml(p.doctor)}</div>
           </div>
-          <span class="badge bg-primary">Prescribe &rarr;</span>`;
-        li.onclick = () => { window.location = '/patient/' + p.id; };
-        listEl.appendChild(li);
-      });
-    } catch (e) {
-      loadingEl.textContent = 'Network error. Please refresh.';
-      loadingEl.className = 'text-danger';
-    }
-  }
-
-  load();
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:#64748b">View &amp; prescribe</span>
+          <i class="bi bi-arrow-right-circle" style="color:#2563eb;font-size:18px"></i>
+        </div>`;
+      div.onclick=()=>window.location='/patient/'+p.id;
+      listEl.appendChild(div);
+    });
+  }catch(e){loadEl.textContent='Network error. Please refresh.';loadEl.style.color='#dc2626';}
+}
+load();
 </script>
-
 {% endblock %}

@@ -146,9 +146,22 @@ def seed_users():
     db.session.commit()
 
 
-with app.app_context():
-    db.create_all()
-    seed_users()
+def init_db():
+    """
+    Initialize database tables and seed default users.
+    Uses checkfirst to avoid crash when multiple Gunicorn workers
+    all try to create tables at the same time.
+    """
+    with app.app_context():
+        # create_all() skips tables that already exist — safe to call every time
+        db.create_all()
+        try:
+            seed_users()
+        except Exception:
+            db.session.rollback()
+
+
+init_db()
 
 
 # ======================================================
@@ -252,6 +265,12 @@ def add_doctor():
     if not specialisation:
         return jsonify({"error": "Specialisation is required"}), 400
 
+    # Strip "Dr." prefix if user typed it — the UI adds it automatically
+    if name.lower().startswith("dr. "):
+        name = name[4:].strip()
+    elif name.lower().startswith("dr."):
+        name = name[3:].strip()
+
     try:
         user_id = None
         # Optionally create a login account for this doctor
@@ -287,18 +306,68 @@ def delete_doctor(doctor_id):
         return denied
 
     doc = Doctor.query.get_or_404(doctor_id)
+    doc_name = doc.name
+
     # Check if any patients are still assigned
-    if Patient.query.filter_by(doctor_id=doctor_id).count() > 0:
-        return jsonify({"error": "Cannot delete — patients are still assigned to this doctor. Reassign them first."}), 400
+    assigned = Patient.query.filter_by(doctor_id=doctor_id).count()
+    if assigned > 0:
+        return jsonify({"error": f"Cannot remove — {assigned} patient(s) are assigned to this doctor. Reassign them first."}), 400
 
     try:
-        doc.is_active = False   # soft delete to preserve audit history
+        # Deactivate the linked login account if one exists
+        if doc.user_id:
+            linked_user = UserAccount.query.get(doc.user_id)
+            if linked_user:
+                linked_user.is_active = False
+
+        # Hard delete the doctor record
+        db.session.delete(doc)
         db.session.commit()
-        audit(f"DEACTIVATE_DOCTOR id={doctor_id}")
-        return jsonify({"msg": "Doctor removed"})
-    except Exception:
+        audit(f"DELETE_DOCTOR id={doctor_id} name={doc_name}")
+        return jsonify({"msg": f"Dr. {doc_name} removed successfully"})
+    except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "Failed to remove doctor"}), 500
+        # If FK error, give a helpful message
+        err = str(e)
+        if "foreign key" in err.lower() or "constraint" in err.lower():
+            return jsonify({"error": "Cannot remove this doctor because they are referenced by other records. Contact your system administrator."}), 400
+        return jsonify({"error": f"Failed to remove doctor: {err}"}), 500
+
+
+@app.route("/update_doctor/<int:doctor_id>", methods=["POST"])
+@login_required
+def update_doctor(doctor_id):
+    """Let admin fix doctor name or specialisation."""
+    denied = role_required("admin")
+    if denied:
+        return denied
+
+    data = request.get_json(silent=True) or {}
+    doc  = Doctor.query.get_or_404(doctor_id)
+
+    name = str(data.get("name", doc.name)).strip()
+    spec = str(data.get("specialisation", doc.specialisation)).strip()
+
+    # Strip accidental "Dr." prefix
+    if name.lower().startswith("dr. "):
+        name = name[4:].strip()
+    elif name.lower().startswith("dr."):
+        name = name[3:].strip()
+
+    if not name:
+        return jsonify({"error": "Name cannot be empty"}), 400
+    if not spec:
+        return jsonify({"error": "Specialisation cannot be empty"}), 400
+
+    try:
+        doc.name           = name
+        doc.specialisation = spec
+        db.session.commit()
+        audit(f"UPDATE_DOCTOR id={doctor_id} name={name}")
+        return jsonify({"msg": "Doctor updated"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to update: {str(e)}"}), 500
 
 
 # ======================================================
@@ -338,9 +407,9 @@ def add_patient():
         db.session.commit()
         audit(f"ADD_PATIENT name={name} doctor_id={doctor_id}")
         return jsonify({"msg": "Patient added"})
-    except Exception:
+    except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "Failed to add patient"}), 500
+        return jsonify({"error": f"Failed to add patient: {str(e)}"}), 500
 
 
 @app.route("/patients")

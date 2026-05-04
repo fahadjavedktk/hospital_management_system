@@ -1,421 +1,362 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2 class="mb-4">Admin panel</h2>
-<div id="banner" class="alert" style="display:none"></div>
+<div class="page-title"><i class="bi bi-shield-check"></i> Admin Panel</div>
+<div id="banner" class="alert-banner"></div>
 
-<!-- TAB NAV -->
-<ul class="nav nav-tabs mb-4" id="adminTabs">
-  <li class="nav-item">
-    <button class="nav-link active" onclick="showTab('patients')">Patients</button>
-  </li>
-  <li class="nav-item">
-    <button class="nav-link" onclick="showTab('doctors')">Doctors</button>
-  </li>
-  <li class="nav-item">
-    <button class="nav-link" onclick="showTab('staff')">Staff accounts</button>
-  </li>
-</ul>
+<div class="htab-nav" id="tabNav">
+  <button class="htab-btn active" onclick="showTab('patients',this)"><i class="bi bi-people"></i> Patients</button>
+  <button class="htab-btn" onclick="showTab('doctors',this)"><i class="bi bi-person-badge"></i> Doctors</button>
+  <button class="htab-btn" onclick="showTab('staff',this)"><i class="bi bi-person-gear"></i> Staff accounts</button>
+</div>
 
-<!-- ===================== PATIENTS TAB ===================== -->
+<!-- ══════════ PATIENTS ══════════ -->
 <div id="tab-patients">
-  <div class="row g-4">
+  <div class="row g-3">
     <div class="col-md-5">
-      <div class="card p-4 shadow-sm">
-        <h5 class="mb-3">Add patient</h5>
-
-        <label class="form-label">Full name</label>
-        <input id="ptName" class="form-control" placeholder="Patient full name" maxlength="100">
-
-        <label class="form-label mt-3">Age</label>
-        <input id="ptAge" class="form-control" type="number" min="0" max="150" placeholder="Age">
-
-        <label class="form-label mt-3">Assign doctor</label>
-        <select id="ptDoctor" class="form-select">
-          <option value="">-- Select a doctor --</option>
-        </select>
-
-        <button id="addPatientBtn" onclick="addPatient()" class="btn btn-success mt-4 w-100">
-          Add patient
+      <div class="hcard">
+        <div class="hcard-title"><i class="bi bi-person-plus"></i> Add patient</div>
+        <div class="mb-3">
+          <label class="form-label">Full name</label>
+          <input id="ptName" class="form-control" placeholder="Patient full name" maxlength="100">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Age</label>
+          <input id="ptAge" class="form-control" type="number" min="0" max="150" placeholder="Age">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Assign doctor</label>
+          <select id="ptDoctor" class="form-select">
+            <option value="">-- Select a doctor --</option>
+          </select>
+        </div>
+        <button id="addPatientBtn" onclick="addPatient()" class="btn-primary-custom w-100 mt-2">
+          <i class="bi bi-plus-lg"></i> Add patient
         </button>
       </div>
     </div>
-
     <div class="col-md-7">
-      <div class="card p-4 shadow-sm">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="mb-0">Patient list</h5>
-          <span id="ptCount" class="badge bg-secondary">0 patients</span>
-        </div>
-        <ul id="ptList" class="list-group"></ul>
-        <p id="ptEmpty" class="text-muted text-center mt-3" style="display:none">No patients yet.</p>
+      <div class="hcard">
+        <div class="hcard-title"><i class="bi bi-list-ul"></i> Patient list <span id="ptCount" class="badge-info ms-2" style="font-size:11px;padding:3px 10px;border-radius:20px"></span></div>
+        <div id="ptLoading" class="loading-state"><div class="spinner"></div> Loading...</div>
+        <div id="ptList"></div>
+        <div id="ptEmpty" class="empty-state" style="display:none"><i class="bi bi-people"></i><p>No patients added yet</p></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ===================== DOCTORS TAB ===================== -->
+<!-- ══════════ DOCTORS ══════════ -->
 <div id="tab-doctors" style="display:none">
-  <div class="row g-4">
+  <div class="row g-3">
     <div class="col-md-5">
-      <div class="card p-4 shadow-sm">
-        <h5 class="mb-3">Add doctor</h5>
-
-        <label class="form-label">Full name</label>
-        <input id="drName" class="form-control" placeholder="Dr. Full Name" maxlength="100">
-
-        <label class="form-label mt-3">Specialisation</label>
-        <input id="drSpec" class="form-control" placeholder="e.g. Cardiology, General" maxlength="100">
-
-        <label class="form-label mt-3">Phone (optional)</label>
-        <input id="drPhone" class="form-control" placeholder="e.g. 0300-1234567" maxlength="20">
-
-        <hr class="my-3">
-        <p class="text-muted" style="font-size:13px">Login account (optional — lets the doctor log in)</p>
-
-        <label class="form-label">Username</label>
-        <input id="drUser" class="form-control" placeholder="e.g. dr_ahmed" maxlength="80" autocomplete="off">
-
-        <label class="form-label mt-3">Password</label>
-        <input id="drPass" class="form-control" type="password" placeholder="Min 8 characters" maxlength="200" autocomplete="new-password">
-
-        <button id="addDoctorBtn" onclick="addDoctor()" class="btn btn-primary mt-4 w-100">
-          Add doctor
+      <div class="hcard">
+        <div class="hcard-title"><i class="bi bi-person-badge"></i> Add doctor</div>
+        <div class="mb-3">
+          <label class="form-label">Full name</label>
+          <input id="drName" class="form-control" placeholder="Full name (without Dr.)" maxlength="100">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Specialisation</label>
+          <input id="drSpec" class="form-control" placeholder="e.g. Cardiology, General" maxlength="100">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Phone <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+          <input id="drPhone" class="form-control" placeholder="e.g. 0300-1234567" maxlength="20">
+        </div>
+        <div style="border-top:1px solid #f1f5f9;padding-top:1rem;margin-top:.5rem">
+          <div style="font-size:12px;color:#64748b;margin-bottom:.75rem;font-weight:500">Login account (optional)</div>
+          <div class="mb-3">
+            <label class="form-label">Username</label>
+            <input id="drUser" class="form-control" placeholder="e.g. dr_ahmed" maxlength="80" autocomplete="off">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Password</label>
+            <input id="drPass" class="form-control" type="password" placeholder="Min 8 characters" maxlength="200">
+          </div>
+        </div>
+        <button id="addDoctorBtn" onclick="addDoctor()" class="btn-primary-custom w-100 mt-1">
+          <i class="bi bi-plus-lg"></i> Add doctor
         </button>
       </div>
     </div>
-
     <div class="col-md-7">
-      <div class="card p-4 shadow-sm">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="mb-0">Doctor list</h5>
-          <span id="drCount" class="badge bg-secondary">0 doctors</span>
-        </div>
-        <ul id="drList" class="list-group"></ul>
-        <p id="drEmpty" class="text-muted text-center mt-3" style="display:none">No doctors added yet.</p>
+      <div class="hcard">
+        <div class="hcard-title"><i class="bi bi-list-ul"></i> Doctor list <span id="drCount" class="badge-info ms-2" style="font-size:11px;padding:3px 10px;border-radius:20px"></span></div>
+        <div id="drLoading" class="loading-state"><div class="spinner"></div> Loading...</div>
+        <div id="drList"></div>
+        <div id="drEmpty" class="empty-state" style="display:none"><i class="bi bi-person-badge"></i><p>No doctors added yet</p></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ===================== STAFF TAB ===================== -->
+<!-- ══════════ STAFF ══════════ -->
 <div id="tab-staff" style="display:none">
-  <div class="row g-4">
+  <div class="row g-3">
     <div class="col-md-5">
-      <div class="card p-4 shadow-sm">
-        <h5 class="mb-3">Create staff account</h5>
-        <p class="text-muted" style="font-size:13px">Use this to create login accounts for lab staff, pharmacy, or patients.</p>
-
-        <label class="form-label">Username</label>
-        <input id="sfUser" class="form-control" placeholder="e.g. lab_sara" maxlength="80" autocomplete="off">
-
-        <label class="form-label mt-3">Password</label>
-        <input id="sfPass" class="form-control" type="password" placeholder="Min 8 characters" maxlength="200" autocomplete="new-password">
-
-        <label class="form-label mt-3">Role</label>
-        <select id="sfRole" class="form-select">
-          <option value="">-- Select role --</option>
-          <option value="doctor">Doctor</option>
-          <option value="lab">Lab</option>
-          <option value="pharmacy">Pharmacy</option>
-          <option value="patient">Patient</option>
-        </select>
-
-        <button id="addStaffBtn" onclick="addStaff()" class="btn btn-warning mt-4 w-100">
-          Create account
+      <div class="hcard">
+        <div class="hcard-title"><i class="bi bi-person-plus-fill"></i> Create staff account</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:1rem">Create login accounts for lab, pharmacy, or patient roles.</div>
+        <div class="mb-3">
+          <label class="form-label">Username</label>
+          <input id="sfUser" class="form-control" placeholder="e.g. lab_sara" maxlength="80" autocomplete="off">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Password</label>
+          <input id="sfPass" class="form-control" type="password" placeholder="Min 8 characters" maxlength="200">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Role</label>
+          <select id="sfRole" class="form-select">
+            <option value="">-- Select role --</option>
+            <option value="doctor">Doctor</option>
+            <option value="lab">Lab</option>
+            <option value="pharmacy">Pharmacy</option>
+            <option value="patient">Patient</option>
+          </select>
+        </div>
+        <button id="addStaffBtn" onclick="addStaff()" class="btn-primary-custom w-100">
+          <i class="bi bi-plus-lg"></i> Create account
         </button>
       </div>
     </div>
-
     <div class="col-md-7">
-      <div class="card p-4 shadow-sm">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="mb-0">Staff accounts</h5>
-          <span id="sfCount" class="badge bg-secondary">0 accounts</span>
-        </div>
-        <ul id="sfList" class="list-group"></ul>
-        <p id="sfEmpty" class="text-muted text-center mt-3" style="display:none">No staff accounts yet.</p>
+      <div class="hcard">
+        <div class="hcard-title"><i class="bi bi-people-fill"></i> Staff accounts <span id="sfCount" class="badge-info ms-2" style="font-size:11px;padding:3px 10px;border-radius:20px"></span></div>
+        <div id="sfLoading" class="loading-state"><div class="spinner"></div> Loading...</div>
+        <div id="sfList"></div>
+        <div id="sfEmpty" class="empty-state" style="display:none"><i class="bi bi-person-gear"></i><p>No staff accounts yet</p></div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-  // -------- UTILS --------
-  function escHtml(s) {
-    const d = document.createElement('div');
-    d.appendChild(document.createTextNode(String(s)));
-    return d.innerHTML;
-  }
+function escHtml(s){const d=document.createElement('div');d.appendChild(document.createTextNode(String(s)));return d.innerHTML;}
 
-  function showBanner(msg, type) {
-    const b = document.getElementById('banner');
-    b.className = 'alert alert-' + type;
-    b.textContent = msg;
-    b.style.display = 'block';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    setTimeout(() => b.style.display = 'none', 5000);
-  }
+function showBanner(msg,type){
+  const b=document.getElementById('banner');
+  b.className='alert-banner alert-'+type;
+  b.textContent=msg; b.style.display='block';
+  b.style.animation='none'; b.offsetHeight; b.style.animation='slideDown .25s ease';
+  if(type==='success') setTimeout(()=>b.style.display='none',4000);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 
-  function setBtn(id, loading, label) {
-    const b = document.getElementById(id);
-    b.disabled = loading;
-    b.textContent = loading ? 'Saving...' : label;
-  }
+function setBtn(id,loading,label){
+  const b=document.getElementById(id);
+  b.disabled=loading;
+  b.innerHTML=loading?'<div class="spinner" style="display:inline-block;border-color:rgba(255,255,255,.4);border-top-color:#fff;margin-right:6px"></div>Saving...':'<i class="bi bi-plus-lg"></i> '+label;
+}
 
-  // -------- TABS --------
-  function showTab(name) {
-    ['patients','doctors','staff'].forEach(t => {
-      document.getElementById('tab-'+t).style.display = t === name ? 'block' : 'none';
+function showTab(name,btn){
+  ['patients','doctors','staff'].forEach(t=>document.getElementById('tab-'+t).style.display=t===name?'block':'none');
+  document.querySelectorAll('.htab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(name==='patients'){loadDoctorDropdown();loadPatients();}
+  if(name==='doctors') loadDoctors();
+  if(name==='staff')   loadStaff();
+}
+
+/* ── DOCTOR DROPDOWN ── */
+async function loadDoctorDropdown(){
+  try{
+    const res=await fetch('/doctors');
+    if(!res.ok) return;
+    const data=await res.json();
+    const sel=document.getElementById('ptDoctor');
+    sel.innerHTML='<option value="">-- Select a doctor --</option>';
+    data.forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=`${escHtml(d.name)} — ${escHtml(d.specialisation)}`;sel.appendChild(o);});
+  }catch(e){}
+}
+
+/* ── ADD DOCTOR ── */
+async function addDoctor(){
+  const name=document.getElementById('drName').value.trim();
+  const spec=document.getElementById('drSpec').value.trim();
+  const phone=document.getElementById('drPhone').value.trim();
+  const user=document.getElementById('drUser').value.trim();
+  const pass=document.getElementById('drPass').value;
+  if(!name){showBanner('Doctor name is required.','warning');return;}
+  if(!spec){showBanner('Specialisation is required.','warning');return;}
+  if(user&&!pass){showBanner('Password required when creating a login account.','warning');return;}
+  if(pass&&pass.length<8){showBanner('Password must be at least 8 characters.','warning');return;}
+  setBtn('addDoctorBtn',true,'Add doctor');
+  try{
+    const res=await fetch('/add_doctor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,specialisation:spec,phone,username:user,password:pass})});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed to add doctor.','danger');return;}
+    showBanner(`${name} added successfully.`,'success');
+    ['drName','drSpec','drPhone','drUser','drPass'].forEach(id=>document.getElementById(id).value='');
+    loadDoctors(); loadDoctorDropdown();
+  }catch(e){showBanner('Network error.','danger');}
+  finally{setBtn('addDoctorBtn',false,'Add doctor');}
+}
+
+async function deleteDoctor(id,name){
+  if(!confirm(`Remove "${name}"? Cannot be done if patients are assigned.`)) return;
+  try{
+    const res=await fetch('/delete_doctor/'+id,{method:'DELETE'});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed to remove.','danger');return;}
+    showBanner('Doctor removed.','success'); loadDoctors(); loadDoctorDropdown();
+  }catch(e){showBanner('Network error.','danger');}
+}
+
+function openEditDoctor(id,name,spec){
+  const newName=prompt('Edit doctor name:',name);
+  if(newName===null) return;
+  const newSpec=prompt('Edit specialisation:',spec);
+  if(newSpec===null) return;
+  updateDoctor(id,newName.trim(),newSpec.trim());
+}
+
+async function updateDoctor(id,name,spec){
+  if(!name||!spec){showBanner('Name and specialisation required.','warning');return;}
+  try{
+    const res=await fetch('/update_doctor/'+id,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,specialisation:spec})});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Update failed.','danger');return;}
+    showBanner('Doctor updated.','success'); loadDoctors(); loadDoctorDropdown();
+  }catch(e){showBanner('Network error.','danger');}
+}
+
+async function loadDoctors(){
+  const loadEl=document.getElementById('drLoading');
+  const listEl=document.getElementById('drList');
+  const emptyEl=document.getElementById('drEmpty');
+  const countEl=document.getElementById('drCount');
+  loadEl.style.display='block'; listEl.innerHTML='';
+  try{
+    const res=await fetch('/doctors');
+    if(!res.ok){loadEl.textContent='Failed to load.';return;}
+    const data=await res.json();
+    loadEl.style.display='none';
+    countEl.textContent=data.length+' doctor'+(data.length!==1?'s':'');
+    if(data.length===0){emptyEl.style.display='block';return;}
+    emptyEl.style.display='none';
+    data.forEach((d,i)=>{
+      const div=document.createElement('div');
+      div.className='hlist-item';
+      div.style.animationDelay=(i*0.05)+'s';
+      div.innerHTML=`<div><strong>${escHtml(d.name)}</strong> <span class="badge-info" style="margin-left:8px;font-size:11px;padding:2px 8px;border-radius:20px">${escHtml(d.specialisation)}</span>${d.phone?`<span style="color:#94a3b8;font-size:12px;margin-left:8px">${escHtml(d.phone)}</span>`:''}</div><div style="display:flex;gap:6px"><button class="btn-secondary-custom" onclick="openEditDoctor(${d.id},'${escHtml(d.name)}','${escHtml(d.specialisation)}')">Edit</button><button class="btn-danger-custom" onclick="deleteDoctor(${d.id},'${escHtml(d.name)}')">Remove</button></div>`;
+      listEl.appendChild(div);
     });
-    document.querySelectorAll('#adminTabs .nav-link').forEach((btn, i) => {
-      btn.classList.toggle('active', ['patients','doctors','staff'][i] === name);
+  }catch(e){loadEl.textContent='Network error.';}
+}
+
+/* ── ADD PATIENT ── */
+async function addPatient(){
+  const name=document.getElementById('ptName').value.trim();
+  const age=document.getElementById('ptAge').value;
+  const doctorId=document.getElementById('ptDoctor').value;
+  if(!name){showBanner('Patient name is required.','warning');return;}
+  if(!age||Number(age)<0||Number(age)>150){showBanner('Enter a valid age (0-150).','warning');return;}
+  if(!doctorId){showBanner('Please select a doctor.','warning');return;}
+  setBtn('addPatientBtn',true,'Add patient');
+  try{
+    const res=await fetch('/add_patient',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,age:Number(age),doctor_id:Number(doctorId)})});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed to add patient.','danger');return;}
+    showBanner('Patient added successfully.','success');
+    ['ptName','ptAge'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('ptDoctor').value='';
+    loadPatients();
+  }catch(e){showBanner('Network error.','danger');}
+  finally{setBtn('addPatientBtn',false,'Add patient');}
+}
+
+async function deletePatient(id,name){
+  if(!confirm(`Delete patient "${name}"? This cannot be undone.`)) return;
+  try{
+    const res=await fetch('/delete_patient/'+id,{method:'DELETE'});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed to delete.','danger');return;}
+    showBanner('Patient deleted.','success'); loadPatients();
+  }catch(e){showBanner('Network error.','danger');}
+}
+
+async function loadPatients(){
+  const loadEl=document.getElementById('ptLoading');
+  const listEl=document.getElementById('ptList');
+  const emptyEl=document.getElementById('ptEmpty');
+  const countEl=document.getElementById('ptCount');
+  loadEl.style.display='block'; listEl.innerHTML='';
+  try{
+    const res=await fetch('/patients');
+    if(!res.ok){loadEl.textContent='Failed to load.';return;}
+    const data=await res.json();
+    loadEl.style.display='none';
+    countEl.textContent=data.length+' patient'+(data.length!==1?'s':'');
+    if(data.length===0){emptyEl.style.display='block';return;}
+    emptyEl.style.display='none';
+    data.forEach((p,i)=>{
+      const div=document.createElement('div');
+      div.className='hlist-item';
+      div.style.animationDelay=(i*0.05)+'s';
+      div.innerHTML=`<div><strong>${escHtml(p.name)}</strong><span style="color:#64748b;font-size:13px;margin-left:10px">Age: ${p.age} &middot; Dr. ${escHtml(p.doctor)}</span></div><button class="btn-danger-custom" onclick="deletePatient(${p.id},'${escHtml(p.name)}')">Delete</button>`;
+      listEl.appendChild(div);
     });
-    if (name === 'patients') { loadDoctorDropdown(); loadPatients(); }
-    if (name === 'doctors')  loadDoctors();
-    if (name === 'staff')    loadStaff();
-  }
+  }catch(e){loadEl.textContent='Network error.';}
+}
 
-  // -------- DOCTORS --------
-  async function loadDoctorDropdown() {
-    try {
-      const res = await fetch('/doctors');
-      if (!res.ok) return;
-      const data = await res.json();
-      const sel = document.getElementById('ptDoctor');
-      sel.innerHTML = '<option value="">-- Select a doctor --</option>';
-      data.forEach(d => {
-        const o = document.createElement('option');
-        o.value = d.id;
-        o.textContent = `Dr. ${d.name} — ${d.specialisation}`;
-        sel.appendChild(o);
-      });
-    } catch(e) {}
-  }
+/* ── STAFF ── */
+async function addStaff(){
+  const user=document.getElementById('sfUser').value.trim();
+  const pass=document.getElementById('sfPass').value;
+  const role=document.getElementById('sfRole').value;
+  if(!user){showBanner('Username is required.','warning');return;}
+  if(!pass||pass.length<8){showBanner('Password must be at least 8 characters.','warning');return;}
+  if(!role){showBanner('Please select a role.','warning');return;}
+  setBtn('addStaffBtn',true,'Create account');
+  try{
+    const res=await fetch('/add_staff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass,role})});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed to create account.','danger');return;}
+    showBanner(data.msg,'success');
+    ['sfUser','sfPass'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('sfRole').value='';
+    loadStaff();
+  }catch(e){showBanner('Network error.','danger');}
+  finally{setBtn('addStaffBtn',false,'Create account');}
+}
 
-  async function addDoctor() {
-    const name = document.getElementById('drName').value.trim();
-    const spec = document.getElementById('drSpec').value.trim();
-    const phone= document.getElementById('drPhone').value.trim();
-    const user = document.getElementById('drUser').value.trim();
-    const pass_= document.getElementById('drPass').value;
+async function deactivateStaff(id,username){
+  if(!confirm(`Deactivate account "${username}"?`)) return;
+  try{
+    const res=await fetch('/deactivate_staff/'+id,{method:'DELETE'});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed.','danger');return;}
+    showBanner('Account deactivated.','success'); loadStaff();
+  }catch(e){showBanner('Network error.','danger');}
+}
 
-    if (!name) { showBanner('Doctor name is required.', 'warning'); return; }
-    if (!spec)  { showBanner('Specialisation is required.', 'warning'); return; }
-    if (user && !pass_) { showBanner('Password is required when creating a login account.', 'warning'); return; }
-    if (pass_ && pass_.length < 8) { showBanner('Password must be at least 8 characters.', 'warning'); return; }
+async function loadStaff(){
+  const loadEl=document.getElementById('sfLoading');
+  const listEl=document.getElementById('sfList');
+  const emptyEl=document.getElementById('sfEmpty');
+  const countEl=document.getElementById('sfCount');
+  loadEl.style.display='block'; listEl.innerHTML='';
+  try{
+    const res=await fetch('/staff');
+    if(!res.ok){loadEl.textContent='Failed to load.';return;}
+    const data=await res.json();
+    loadEl.style.display='none';
+    countEl.textContent=data.length+' account'+(data.length!==1?'s':'');
+    if(data.length===0){emptyEl.style.display='block';return;}
+    emptyEl.style.display='none';
+    const colors={doctor:'badge-done',lab:'badge-pending',pharmacy:'badge-info',patient:'badge-info'};
+    data.forEach((u,i)=>{
+      const div=document.createElement('div');
+      div.className='hlist-item';
+      div.style.animationDelay=(i*0.05)+'s';
+      div.innerHTML=`<div><strong>${escHtml(u.username)}</strong> <span class="${colors[u.role]||'badge-info'}" style="margin-left:8px">${escHtml(u.role)}</span></div><button class="btn-danger-custom" onclick="deactivateStaff(${u.id},'${escHtml(u.username)}')">Deactivate</button>`;
+      listEl.appendChild(div);
+    });
+  }catch(e){loadEl.textContent='Network error.';}
+}
 
-    setBtn('addDoctorBtn', true, 'Add doctor');
-    try {
-      const res = await fetch('/add_doctor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, specialisation: spec, phone, username: user, password: pass_ })
-      });
-      const data = await res.json();
-      if (!res.ok) { showBanner(data.error || 'Failed to add doctor.', 'danger'); return; }
-      showBanner(`Dr. ${name} added successfully.`, 'success');
-      ['drName','drSpec','drPhone','drUser','drPass'].forEach(id => document.getElementById(id).value = '');
-      loadDoctors();
-      loadDoctorDropdown();
-    } catch(e) {
-      showBanner('Network error.', 'danger');
-    } finally {
-      setBtn('addDoctorBtn', false, 'Add doctor');
-    }
-  }
-
-  async function deleteDoctor(id, name) {
-    if (!confirm(`Remove Dr. ${name}? This cannot be done if patients are still assigned to them.`)) return;
-    try {
-      const res = await fetch('/delete_doctor/' + id, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) { showBanner(data.error, 'danger'); return; }
-      showBanner('Doctor removed.', 'success');
-      loadDoctors();
-      loadDoctorDropdown();
-    } catch(e) { showBanner('Network error.', 'danger'); }
-  }
-
-  async function loadDoctors() {
-    try {
-      const res = await fetch('/doctors');
-      if (!res.ok) return;
-      const data = await res.json();
-      const list = document.getElementById('drList');
-      const empty= document.getElementById('drEmpty');
-      const count= document.getElementById('drCount');
-      list.innerHTML = '';
-      count.textContent = data.length + ' doctor' + (data.length !== 1 ? 's' : '');
-      if (data.length === 0) { empty.style.display = 'block'; return; }
-      empty.style.display = 'none';
-      data.forEach(d => {
-        const li = document.createElement('li');
-        li.className = 'list-group-item d-flex justify-content-between align-items-center';
-        li.innerHTML = `
-          <div>
-            <strong>Dr. ${escHtml(d.name)}</strong>
-            <span class="badge bg-info text-dark ms-2">${escHtml(d.specialisation)}</span>
-            ${d.phone ? `<small class="text-muted ms-2">${escHtml(d.phone)}</small>` : ''}
-          </div>`;
-        const btn = document.createElement('button');
-        btn.className = 'btn btn-outline-danger btn-sm';
-        btn.textContent = 'Remove';
-        btn.onclick = () => deleteDoctor(d.id, d.name);
-        li.appendChild(btn);
-        list.appendChild(li);
-      });
-    } catch(e) {}
-  }
-
-  // -------- PATIENTS --------
-  async function addPatient() {
-    const name     = document.getElementById('ptName').value.trim();
-    const age      = document.getElementById('ptAge').value;
-    const doctorId = document.getElementById('ptDoctor').value;
-
-    if (!name)     { showBanner('Patient name is required.', 'warning'); return; }
-    if (!age || Number(age) < 0 || Number(age) > 150) {
-      showBanner('Enter a valid age (0–150).', 'warning'); return;
-    }
-    if (!doctorId) { showBanner('Please select a doctor from the list.', 'warning'); return; }
-
-    setBtn('addPatientBtn', true, 'Add patient');
-    try {
-      const res = await fetch('/add_patient', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, age: Number(age), doctor_id: Number(doctorId) })
-      });
-      const data = await res.json();
-      if (!res.ok) { showBanner(data.error || 'Failed to add patient.', 'danger'); return; }
-      showBanner('Patient added successfully.', 'success');
-      ['ptName','ptAge'].forEach(id => document.getElementById(id).value = '');
-      document.getElementById('ptDoctor').value = '';
-      loadPatients();
-    } catch(e) {
-      showBanner('Network error.', 'danger');
-    } finally {
-      setBtn('addPatientBtn', false, 'Add patient');
-    }
-  }
-
-  async function deletePatient(id, name) {
-    if (!confirm(`Delete patient "${name}"? This cannot be undone.`)) return;
-    try {
-      const res = await fetch('/delete_patient/' + id, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) { showBanner(data.error || 'Failed to delete.', 'danger'); return; }
-      showBanner('Patient deleted.', 'success');
-      loadPatients();
-    } catch(e) { showBanner('Network error.', 'danger'); }
-  }
-
-  async function loadPatients() {
-    try {
-      const res = await fetch('/patients');
-      if (!res.ok) return;
-      const data = await res.json();
-      const list  = document.getElementById('ptList');
-      const empty = document.getElementById('ptEmpty');
-      const count = document.getElementById('ptCount');
-      list.innerHTML = '';
-      count.textContent = data.length + ' patient' + (data.length !== 1 ? 's' : '');
-      if (data.length === 0) { empty.style.display = 'block'; return; }
-      empty.style.display = 'none';
-      data.forEach(p => {
-        const li = document.createElement('li');
-        li.className = 'list-group-item d-flex justify-content-between align-items-center';
-        li.innerHTML = `
-          <div>
-            <strong>${escHtml(p.name)}</strong>
-            <small class="text-muted ms-2">Age: ${p.age} &middot; Dr. ${escHtml(p.doctor)}</small>
-          </div>`;
-        const btn = document.createElement('button');
-        btn.className = 'btn btn-outline-danger btn-sm';
-        btn.textContent = 'Delete';
-        btn.onclick = () => deletePatient(p.id, p.name);
-        li.appendChild(btn);
-        list.appendChild(li);
-      });
-    } catch(e) {}
-  }
-
-  // -------- STAFF --------
-  async function addStaff() {
-    const user = document.getElementById('sfUser').value.trim();
-    const pass_= document.getElementById('sfPass').value;
-    const role = document.getElementById('sfRole').value;
-
-    if (!user)  { showBanner('Username is required.', 'warning'); return; }
-    if (!pass_ || pass_.length < 8) { showBanner('Password must be at least 8 characters.', 'warning'); return; }
-    if (!role)  { showBanner('Please select a role.', 'warning'); return; }
-
-    setBtn('addStaffBtn', true, 'Create account');
-    try {
-      const res = await fetch('/add_staff', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: user, password: pass_, role })
-      });
-      const data = await res.json();
-      if (!res.ok) { showBanner(data.error || 'Failed to create account.', 'danger'); return; }
-      showBanner(data.msg, 'success');
-      ['sfUser','sfPass'].forEach(id => document.getElementById(id).value = '');
-      document.getElementById('sfRole').value = '';
-      loadStaff();
-    } catch(e) {
-      showBanner('Network error.', 'danger');
-    } finally {
-      setBtn('addStaffBtn', false, 'Create account');
-    }
-  }
-
-  async function deactivateStaff(id, username) {
-    if (!confirm(`Deactivate account "${username}"? They will no longer be able to log in.`)) return;
-    try {
-      const res = await fetch('/deactivate_staff/' + id, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) { showBanner(data.error || 'Failed.', 'danger'); return; }
-      showBanner('Account deactivated.', 'success');
-      loadStaff();
-    } catch(e) { showBanner('Network error.', 'danger'); }
-  }
-
-  async function loadStaff() {
-    try {
-      const res = await fetch('/staff');
-      if (!res.ok) return;
-      const data = await res.json();
-      const list  = document.getElementById('sfList');
-      const empty = document.getElementById('sfEmpty');
-      const count = document.getElementById('sfCount');
-      list.innerHTML = '';
-      count.textContent = data.length + ' account' + (data.length !== 1 ? 's' : '');
-      if (data.length === 0) { empty.style.display = 'block'; return; }
-      empty.style.display = 'none';
-      const roleColors = { doctor:'primary', lab:'success', pharmacy:'warning', patient:'secondary' };
-      data.forEach(u => {
-        const li = document.createElement('li');
-        li.className = 'list-group-item d-flex justify-content-between align-items-center';
-        li.innerHTML = `
-          <div>
-            <strong>${escHtml(u.username)}</strong>
-            <span class="badge bg-${roleColors[u.role]||'secondary'} ms-2">${escHtml(u.role)}</span>
-          </div>`;
-        const btn = document.createElement('button');
-        btn.className = 'btn btn-outline-danger btn-sm';
-        btn.textContent = 'Deactivate';
-        btn.onclick = () => deactivateStaff(u.id, u.username);
-        li.appendChild(btn);
-        list.appendChild(li);
-      });
-    } catch(e) {}
-  }
-
-  // -------- INIT --------
-  loadDoctorDropdown();
-  loadPatients();
+loadDoctorDropdown(); loadPatients();
 </script>
-
 {% endblock %}

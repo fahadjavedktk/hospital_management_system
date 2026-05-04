@@ -1,120 +1,93 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2 class="mb-4">My health record</h2>
-
-<div id="banner" class="alert alert-danger" style="display:none"></div>
-<div id="loading" class="text-muted">Loading your records...</div>
+<div class="page-title"><i class="bi bi-heart-pulse"></i> My Health Record</div>
+<div id="banner" class="alert-banner alert-danger"></div>
+<div id="loading" class="loading-state"><div class="spinner"></div> Loading your records...</div>
 
 <div id="content" style="display:none">
 
-  <!-- Patient summary card -->
-  <div class="card p-3 shadow-sm mb-4">
-    <div class="d-flex align-items-center gap-3">
+  <div class="hcard mb-3" id="summaryCard">
+    <div style="display:flex;align-items:center;gap:16px">
+      <div style="width:60px;height:60px;border-radius:18px;background:linear-gradient(135deg,#2563eb,#60a5fa);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff" id="patientAvatar"></div>
       <div>
-        <h5 class="mb-0" id="patientName"></h5>
-        <small class="text-muted">Assigned doctor: <strong id="patientDoctor"></strong></small>
+        <div style="font-size:20px;font-weight:700;color:#0f172a" id="patientName"></div>
+        <div style="font-size:13px;color:#64748b;margin-top:2px">Assigned doctor: <strong id="patientDoctor"></strong></div>
       </div>
     </div>
   </div>
 
-  <div class="row g-4">
-
-    <!-- Lab Results -->
+  <div class="row g-3">
     <div class="col-md-6">
-      <div class="card p-4 shadow-sm h-100">
-        <h5 class="mb-3">Lab results</h5>
-        <ul id="labResults" class="list-group"></ul>
-        <p id="noLabs" class="text-muted" style="display:none">No lab tests ordered yet.</p>
+      <div class="hcard h-100">
+        <div class="hcard-title"><i class="bi bi-eyedropper"></i> Lab results</div>
+        <div id="labResults"></div>
+        <div id="noLabs" class="empty-state" style="display:none"><i class="bi bi-clipboard2-x"></i><p>No lab tests ordered yet</p></div>
       </div>
     </div>
-
-    <!-- Prescriptions -->
     <div class="col-md-6">
-      <div class="card p-4 shadow-sm h-100">
-        <h5 class="mb-3">Prescriptions</h5>
-        <ul id="presResults" class="list-group"></ul>
-        <p id="noPres" class="text-muted" style="display:none">No prescriptions issued yet.</p>
+      <div class="hcard h-100">
+        <div class="hcard-title"><i class="bi bi-capsule"></i> Prescriptions</div>
+        <div id="presResults"></div>
+        <div id="noPres" class="empty-state" style="display:none"><i class="bi bi-prescription"></i><p>No prescriptions issued yet</p></div>
       </div>
     </div>
-
   </div>
 </div>
 
 <script>
-  function escHtml(str) {
-    const d = document.createElement('div');
-    d.appendChild(document.createTextNode(String(str)));
-    return d.innerHTML;
-  }
+function escHtml(s){const d=document.createElement('div');d.appendChild(document.createTextNode(String(s)));return d.innerHTML;}
 
-  async function load() {
-    const loadingEl = document.getElementById('loading');
-    const contentEl = document.getElementById('content');
-    const bannerEl  = document.getElementById('banner');
-
-    try {
-      const res = await fetch('/my');
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        bannerEl.textContent = data.error || 'Could not load your records.';
-        bannerEl.style.display = 'block';
-        loadingEl.style.display = 'none';
-        return;
-      }
-
-      const data = await res.json();
-      loadingEl.style.display = 'none';
-      contentEl.style.display = 'block';
-
-      // Patient + doctor summary
-      document.getElementById('patientName').textContent   = data.patient;
-      document.getElementById('patientDoctor').textContent = data.doctor || 'Not assigned';
-
-      // Lab results
-      const labList = document.getElementById('labResults');
-      const noLabs  = document.getElementById('noLabs');
-      if (data.labs.length === 0) {
-        noLabs.style.display = 'block';
-      } else {
-        data.labs.forEach(l => {
-          const li = document.createElement('li');
-          li.className = 'list-group-item d-flex justify-content-between align-items-center';
-          const isPending = l.result === 'Pending';
-          li.innerHTML = `
-            <span>${escHtml(l.test)}</span>
-            <span class="badge ${isPending ? 'bg-warning text-dark' : 'bg-success'}">
-              ${escHtml(l.result)}
-            </span>`;
-          labList.appendChild(li);
-        });
-      }
-
-      // Prescriptions
-      const presList = document.getElementById('presResults');
-      const noPres   = document.getElementById('noPres');
-      if (data.pres.length === 0) {
-        noPres.style.display = 'block';
-      } else {
-        data.pres.forEach(p => {
-          const li = document.createElement('li');
-          li.className = 'list-group-item d-flex justify-content-between align-items-center';
-          li.innerHTML = `
-            <span>${escHtml(p.medicine)}</span>
-            <span class="badge bg-secondary">Qty: ${p.quantity}</span>`;
-          presList.appendChild(li);
-        });
-      }
-
-    } catch (e) {
-      bannerEl.textContent = 'Network error. Please refresh the page.';
-      bannerEl.style.display = 'block';
-      loadingEl.style.display = 'none';
+async function load(){
+  const loadEl=document.getElementById('loading');
+  const contentEl=document.getElementById('content');
+  const bannerEl=document.getElementById('banner');
+  try{
+    const res=await fetch('/my');
+    if(!res.ok){
+      const data=await res.json().catch(()=>({}));
+      bannerEl.textContent=data.error||'Could not load your records.';
+      bannerEl.style.display='block';
+      loadEl.style.display='none'; return;
     }
+    const data=await res.json();
+    loadEl.style.display='none'; contentEl.style.display='block';
+
+    const initial=data.patient?data.patient[0].toUpperCase():'?';
+    document.getElementById('patientAvatar').textContent=initial;
+    document.getElementById('patientName').textContent=data.patient;
+    document.getElementById('patientDoctor').textContent=data.doctor||'Not assigned';
+
+    const labList=document.getElementById('labResults');
+    const noLabs=document.getElementById('noLabs');
+    if(!data.labs||data.labs.length===0){noLabs.style.display='block';}
+    else{
+      data.labs.forEach((l,i)=>{
+        const isPending=l.result==='Pending';
+        const div=document.createElement('div');
+        div.className='hlist-item'; div.style.animationDelay=(i*0.06)+'s';
+        div.innerHTML=`<div><div style="font-weight:600;font-size:13px">${escHtml(l.test)}</div></div><span class="${isPending?'badge-pending':'badge-done'}">${escHtml(l.result)}</span>`;
+        labList.appendChild(div);
+      });
+    }
+
+    const presList=document.getElementById('presResults');
+    const noPres=document.getElementById('noPres');
+    if(!data.pres||data.pres.length===0){noPres.style.display='block';}
+    else{
+      data.pres.forEach((p,i)=>{
+        const div=document.createElement('div');
+        div.className='hlist-item'; div.style.animationDelay=(i*0.06)+'s';
+        div.innerHTML=`<div><div style="font-weight:600;font-size:13px">${escHtml(p.medicine)}</div></div><span class="badge-info">Qty: ${p.quantity}</span>`;
+        presList.appendChild(div);
+      });
+    }
+  }catch(e){
+    bannerEl.textContent='Network error. Please refresh the page.';
+    bannerEl.style.display='block';
+    loadEl.style.display='none';
   }
-
-  load();
+}
+load();
 </script>
-
 {% endblock %}

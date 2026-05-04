@@ -1,200 +1,159 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2 class="mb-4">Pharmacy</h2>
+<div class="page-title"><i class="bi bi-capsule-pill"></i> Pharmacy</div>
+<div id="banner" class="alert-banner"></div>
 
-<div id="banner" class="alert" style="display:none"></div>
+<div class="row g-3 mb-3">
+  <div class="col-md-4"><div class="stat-card"><div class="stat-icon" style="background:#dbeafe"><span style="font-size:22px">&#128138;</span></div><div><div class="stat-val" id="totalMeds">—</div><div class="stat-lbl">Total medicines</div></div></div></div>
+  <div class="col-md-4"><div class="stat-card"><div class="stat-icon" style="background:#fef2f2"><span style="font-size:22px">&#128997;</span></div><div><div class="stat-val" id="lowStock">—</div><div class="stat-lbl">Low stock items</div></div></div></div>
+  <div class="col-md-4"><div class="stat-card"><div class="stat-icon" style="background:#f0fdf4"><span style="font-size:22px">&#128200;</span></div><div><div class="stat-val" id="totalVal">—</div><div class="stat-lbl">Inventory value</div></div></div></div>
+</div>
 
-<div class="row g-4">
-
-  <!-- ADD MEDICINE -->
+<div class="row g-3">
   <div class="col-md-4">
-    <div class="card p-4 shadow-sm">
-      <h5 class="mb-3">Add medicine</h5>
-
-      <label class="form-label">Medicine name</label>
-      <input id="medName" class="form-control" placeholder="e.g. Paracetamol" maxlength="100">
-
-      <label class="form-label mt-3">Stock (units)</label>
-      <input id="medStock" class="form-control" type="number" min="0" placeholder="e.g. 200">
-
-      <label class="form-label mt-3">Price (PKR)</label>
-      <input id="medPrice" class="form-control" type="number" min="0" step="0.01" placeholder="e.g. 50.00">
-
-      <button id="addBtn" onclick="addMedicine()" class="btn btn-success mt-4 w-100">
-        Add medicine
-      </button>
+    <div class="hcard">
+      <div class="hcard-title"><i class="bi bi-plus-circle"></i> Add medicine</div>
+      <div class="mb-3"><label class="form-label">Medicine name</label><input id="medName" class="form-control" placeholder="e.g. Paracetamol" maxlength="100"></div>
+      <div class="mb-3"><label class="form-label">Stock (units)</label><input id="medStock" class="form-control" type="number" min="0" placeholder="e.g. 200"></div>
+      <div class="mb-3"><label class="form-label">Price (PKR)</label><input id="medPrice" class="form-control" type="number" min="0" step="0.01" placeholder="e.g. 50.00"></div>
+      <button id="addBtn" onclick="addMedicine()" class="btn-primary-custom w-100"><i class="bi bi-plus-lg"></i> Add medicine</button>
     </div>
   </div>
-
-  <!-- MEDICINE LIST -->
   <div class="col-md-8">
-    <div class="card p-4 shadow-sm">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0">Medicine inventory</h5>
-        <span id="count" class="badge bg-secondary"></span>
+    <div class="hcard">
+      <div class="hcard-title" style="justify-content:space-between">
+        <span><i class="bi bi-box-seam"></i> Inventory <span id="invCount" class="badge-info ms-2" style="font-size:11px;padding:3px 10px;border-radius:20px"></span></span>
       </div>
-      <div id="loading" class="text-muted">Loading...</div>
-      <ul id="list" class="list-group"></ul>
-      <p id="emptyMsg" class="text-muted text-center mt-3" style="display:none">No medicines added yet.</p>
+      <div id="loading" class="loading-state"><div class="spinner"></div> Loading...</div>
+      <div id="medList"></div>
+      <div id="emptyMsg" class="empty-state" style="display:none"><i class="bi bi-box"></i><p>No medicines added yet</p></div>
     </div>
   </div>
-
 </div>
 
-<!-- Edit modal (inline, no display:none so it works during streaming) -->
-<div id="editModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
-  <div style="background:#fff; border-radius:12px; padding:2rem; width:340px; max-width:90vw;">
-    <h5 class="mb-3">Update stock &amp; price</h5>
+<!-- Edit Modal -->
+<div id="editOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:2000;align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+  <div style="background:#fff;border-radius:20px;padding:2rem;width:360px;max-width:90vw;animation:popIn .3s cubic-bezier(.34,1.56,.64,1)">
+    <div style="font-size:16px;font-weight:700;margin-bottom:1.25rem;color:#0f172a"><i class="bi bi-pencil-square" style="color:#2563eb;margin-right:8px"></i>Update medicine</div>
     <input type="hidden" id="editId">
-    <label class="form-label">Stock (units)</label>
-    <input id="editStock" class="form-control" type="number" min="0">
-    <label class="form-label mt-3">Price (PKR)</label>
-    <input id="editPrice" class="form-control" type="number" min="0" step="0.01">
-    <div class="d-flex gap-2 mt-4">
-      <button onclick="saveEdit()" class="btn btn-primary flex-grow-1">Save</button>
-      <button onclick="closeEdit()" class="btn btn-outline-secondary flex-grow-1">Cancel</button>
+    <div class="mb-3"><label class="form-label">Stock (units)</label><input id="editStock" class="form-control" type="number" min="0"></div>
+    <div class="mb-3"><label class="form-label">Price (PKR)</label><input id="editPrice" class="form-control" type="number" min="0" step="0.01"></div>
+    <div style="display:flex;gap:8px;margin-top:1.25rem">
+      <button onclick="saveEdit()" class="btn-primary-custom" style="flex:1"><i class="bi bi-check2"></i> Save changes</button>
+      <button onclick="closeEdit()" class="btn-secondary-custom" style="flex:1">Cancel</button>
     </div>
   </div>
 </div>
+
+<style>
+@keyframes popIn{from{opacity:0;transform:scale(.9) translateY(20px)}to{opacity:1;transform:none}}
+</style>
 
 <script>
-  function showBanner(msg, type) {
-    const b = document.getElementById('banner');
-    b.className = 'alert alert-' + type;
-    b.textContent = msg;
-    b.style.display = 'block';
-    setTimeout(() => { b.style.display = 'none'; }, 4000);
-  }
+function escHtml(s){const d=document.createElement('div');d.appendChild(document.createTextNode(String(s)));return d.innerHTML;}
+function showBanner(msg,type){
+  const b=document.getElementById('banner');
+  b.className='alert-banner alert-'+type;
+  b.textContent=msg; b.style.display='block';
+  b.style.animation='none'; b.offsetHeight; b.style.animation='slideDown .25s ease';
+  setTimeout(()=>b.style.display='none',4000);
+}
 
-  function escHtml(str) {
-    const d = document.createElement('div');
-    d.appendChild(document.createTextNode(String(str)));
-    return d.innerHTML;
-  }
+async function addMedicine(){
+  const name=document.getElementById('medName').value.trim();
+  const stock=document.getElementById('medStock').value;
+  const price=document.getElementById('medPrice').value;
+  const btn=document.getElementById('addBtn');
+  if(!name){showBanner('Medicine name is required.','warning');return;}
+  if(stock===''||Number(stock)<0){showBanner('Stock must be 0 or more.','warning');return;}
+  if(price===''||Number(price)<0){showBanner('Price must be 0 or more.','warning');return;}
+  btn.disabled=true;
+  btn.innerHTML='<div class="spinner" style="display:inline-block;border-color:rgba(255,255,255,.4);border-top-color:#fff;margin-right:6px"></div>Adding...';
+  try{
+    const res=await fetch('/add_med',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,stock:Number(stock),price:Number(price)})});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed to add.','danger');return;}
+    showBanner('Medicine added.','success');
+    ['medName','medStock','medPrice'].forEach(id=>document.getElementById(id).value='');
+    loadMeds();
+  }catch(e){showBanner('Network error.','danger');}
+  finally{btn.disabled=false;btn.innerHTML='<i class="bi bi-plus-lg"></i> Add medicine';}
+}
 
-  async function addMedicine() {
-    const name  = document.getElementById('medName').value.trim();
-    const stock = document.getElementById('medStock').value;
-    const price = document.getElementById('medPrice').value;
-    const btn   = document.getElementById('addBtn');
+function openEdit(id,stock,price){
+  document.getElementById('editId').value=id;
+  document.getElementById('editStock').value=stock;
+  document.getElementById('editPrice').value=price;
+  const ov=document.getElementById('editOverlay');
+  ov.style.display='flex';
+}
+function closeEdit(){document.getElementById('editOverlay').style.display='none';}
 
-    if (!name) { showBanner('Medicine name is required.', 'warning'); return; }
-    if (stock === '' || Number(stock) < 0) { showBanner('Stock must be 0 or more.', 'warning'); return; }
-    if (price === '' || Number(price) < 0) { showBanner('Price must be 0 or more.', 'warning'); return; }
+async function saveEdit(){
+  const id=document.getElementById('editId').value;
+  const stock=Number(document.getElementById('editStock').value);
+  const price=Number(document.getElementById('editPrice').value);
+  if(isNaN(stock)||stock<0){showBanner('Enter a valid stock number.','warning');return;}
+  if(isNaN(price)||price<0){showBanner('Enter a valid price.','warning');return;}
+  try{
+    const res=await fetch('/update_stock/'+id,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stock,price})});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Update failed.','danger');return;}
+    showBanner('Stock updated.','success'); closeEdit(); loadMeds();
+  }catch(e){showBanner('Network error.','danger');}
+}
 
-    btn.disabled = true; btn.textContent = 'Adding...';
+async function deleteMed(id,name){
+  if(!confirm(`Delete "${name}" from inventory?`)) return;
+  try{
+    const res=await fetch('/delete_med/'+id,{method:'DELETE'});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed.','danger');return;}
+    showBanner('Medicine deleted.','success'); loadMeds();
+  }catch(e){showBanner('Network error.','danger');}
+}
 
-    try {
-      const res = await fetch('/add_med', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, stock: Number(stock), price: Number(price) })
-      });
-      const data = await res.json();
-      if (!res.ok) { showBanner(data.error || 'Failed to add medicine.', 'danger'); return; }
-      showBanner('Medicine added.', 'success');
-      document.getElementById('medName').value  = '';
-      document.getElementById('medStock').value = '';
-      document.getElementById('medPrice').value = '';
-      loadMeds();
-    } catch (e) {
-      showBanner('Network error.', 'danger');
-    } finally {
-      btn.disabled = false; btn.textContent = 'Add medicine';
-    }
-  }
-
-  function openEdit(id, stock, price) {
-    document.getElementById('editId').value    = id;
-    document.getElementById('editStock').value = stock;
-    document.getElementById('editPrice').value = price;
-    document.getElementById('editModal').style.display = 'flex';
-  }
-
-  function closeEdit() {
-    document.getElementById('editModal').style.display = 'none';
-  }
-
-  async function saveEdit() {
-    const id    = document.getElementById('editId').value;
-    const stock = Number(document.getElementById('editStock').value);
-    const price = Number(document.getElementById('editPrice').value);
-
-    if (isNaN(stock) || stock < 0) { showBanner('Enter a valid stock number.', 'warning'); return; }
-    if (isNaN(price) || price < 0) { showBanner('Enter a valid price.', 'warning'); return; }
-
-    try {
-      const res = await fetch('/update_stock/' + id, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stock, price })
-      });
-      const data = await res.json();
-      if (!res.ok) { showBanner(data.error || 'Update failed.', 'danger'); return; }
-      showBanner('Stock updated.', 'success');
-      closeEdit();
-      loadMeds();
-    } catch (e) {
-      showBanner('Network error.', 'danger');
-    }
-  }
-
-  async function deleteMed(id, name) {
-    if (!confirm(`Delete "${name}" from inventory? This cannot be undone.`)) return;
-    try {
-      const res = await fetch('/delete_med/' + id, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) { showBanner(data.error || 'Failed to delete.', 'danger'); return; }
-      showBanner('Medicine deleted.', 'success');
-      loadMeds();
-    } catch (e) {
-      showBanner('Network error.', 'danger');
-    }
-  }
-
-  async function loadMeds() {
-    const loadingEl = document.getElementById('loading');
-    const listEl    = document.getElementById('list');
-    const countEl   = document.getElementById('count');
-    const emptyEl   = document.getElementById('emptyMsg');
-
-    try {
-      const res = await fetch('/meds');
-      if (!res.ok) { loadingEl.textContent = 'Failed to load inventory.'; return; }
-
-      const data = await res.json();
-      loadingEl.style.display = 'none';
-      listEl.innerHTML = '';
-      countEl.textContent = data.length + ' item' + (data.length !== 1 ? 's' : '');
-
-      if (data.length === 0) { emptyEl.style.display = 'block'; return; }
-      emptyEl.style.display = 'none';
-
-      data.forEach(m => {
-        const isLow = m.stock < 20;
-        const li = document.createElement('li');
-        li.className = 'list-group-item d-flex justify-content-between align-items-center';
-        li.innerHTML = `
+async function loadMeds(){
+  const loadEl=document.getElementById('loading');
+  const listEl=document.getElementById('medList');
+  const emptyEl=document.getElementById('emptyMsg');
+  const countEl=document.getElementById('invCount');
+  loadEl.style.display='block'; listEl.innerHTML='';
+  try{
+    const res=await fetch('/meds');
+    if(!res.ok){loadEl.textContent='Failed to load.';return;}
+    const data=await res.json();
+    loadEl.style.display='none';
+    countEl.textContent=data.length+' item'+(data.length!==1?'s':'');
+    document.getElementById('totalMeds').textContent=data.length;
+    const low=data.filter(m=>m.stock<20).length;
+    document.getElementById('lowStock').textContent=low;
+    const val=data.reduce((s,m)=>s+m.stock*m.price,0);
+    document.getElementById('totalVal').textContent='PKR '+Math.round(val).toLocaleString();
+    if(data.length===0){emptyEl.style.display='block';return;}
+    emptyEl.style.display='none';
+    data.forEach((m,i)=>{
+      const isLow=m.stock<20;
+      const div=document.createElement('div');
+      div.className='hlist-item';
+      div.style.animationDelay=(i*0.04)+'s';
+      div.innerHTML=`
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:38px;height:38px;border-radius:10px;background:#eff6ff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">&#128138;</div>
           <div>
-            <strong>${escHtml(m.name)}</strong>
-            ${isLow ? '<span class="badge bg-danger ms-1">Low stock</span>' : ''}
+            <div style="font-weight:600;font-size:14px">${escHtml(m.name)} ${isLow?'<span class="badge-low" style="margin-left:6px">Low stock</span>':''}</div>
+            <div style="font-size:12px;color:#64748b">Stock: ${m.stock} units &middot; PKR ${Number(m.price).toFixed(2)}</div>
           </div>
-          <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-secondary">Stock: ${m.stock}</span>
-            <span class="badge bg-info text-dark">PKR ${Number(m.price).toFixed(2)}</span>
-            <button class="btn btn-outline-secondary btn-sm" onclick="openEdit(${m.id},${m.stock},${m.price})">Edit</button>
-            <button class="btn btn-outline-danger btn-sm" onclick="deleteMed(${m.id},'${escHtml(m.name)}')">Delete</button>
-          </div>`;
-        listEl.appendChild(li);
-      });
-    } catch (e) {
-      loadingEl.textContent = 'Network error.';
-      loadingEl.className = 'text-danger';
-    }
-  }
-
-  loadMeds();
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn-secondary-custom" onclick="openEdit(${m.id},${m.stock},${m.price})"><i class="bi bi-pencil"></i> Edit</button>
+          <button class="btn-danger-custom" onclick="deleteMed(${m.id},'${escHtml(m.name)}')">Delete</button>
+        </div>`;
+      listEl.appendChild(div);
+    });
+  }catch(e){loadEl.textContent='Network error.';}
+}
+loadMeds();
 </script>
-
 {% endblock %}

@@ -1,131 +1,140 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2 class="mb-4">Patient prescription</h2>
+<div class="page-title"><i class="bi bi-prescription2"></i> Patient Prescription</div>
+<div id="banner" class="alert-banner"></div>
 
-<div id="banner" class="alert" style="display:none"></div>
+<div class="row g-3">
+  <div class="col-md-7">
+    <div class="hcard">
+      <div class="hcard-title"><i class="bi bi-person-circle"></i> Patient info</div>
+      <div style="display:flex;align-items:center;gap:14px;padding:1rem;background:#f8faff;border-radius:12px;margin-bottom:1.5rem">
+        <div style="width:52px;height:52px;border-radius:14px;background:#eff6ff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#2563eb;flex-shrink:0">{{ patient.name[0].upper() }}</div>
+        <div>
+          <div style="font-size:17px;font-weight:700;color:#0f172a">{{ patient.name | e }}</div>
+          <div style="font-size:13px;color:#64748b">Dr. {{ patient.doctor.name | e }}</div>
+        </div>
+      </div>
 
-<div class="card p-4 shadow-sm col-md-6">
+      <div class="mb-3">
+        <label class="form-label">Medicine <span style="color:#94a3b8;font-weight:400">(select from inventory or type)</span></label>
+        <select id="medicine" class="form-select mb-2">
+          <option value="">-- Select from pharmacy inventory --</option>
+        </select>
+        <input id="medicineCustom" class="form-control" placeholder="Or type medicine name manually" maxlength="100" autocomplete="off">
+      </div>
 
-  <div class="mb-3 p-3 bg-light rounded">
-    <strong>Patient:</strong> {{ patient.name | e }}<br>
-    <small class="text-muted">Doctor: {{ patient.doctor.name | e }}</small>
+      <div class="mb-3">
+        <label class="form-label">Quantity</label>
+        <input id="qty" class="form-control" type="number" min="1" max="999" placeholder="e.g. 10">
+        <div id="stockInfo" style="font-size:12px;color:#64748b;margin-top:4px"></div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Lab test <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+        <select id="test" class="form-select">
+          <option value="">-- No test required --</option>
+          {% for t in tests %}
+          <option value="{{ t | e }}">{{ t | e }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <button id="submitBtn" data-pid="{{ patient.id | int }}" onclick="submitForm(this)" class="btn-primary-custom w-100 mt-2">
+        <i class="bi bi-check2-circle"></i> Submit prescription
+      </button>
+    </div>
   </div>
 
-  <label class="form-label">Medicine</label>
-  <select id="medicine" class="form-select">
-    <option value="">-- Select medicine or type below --</option>
-  </select>
-  <input id="medicineCustom" class="form-control mt-2" placeholder="Or type medicine name manually" maxlength="100" autocomplete="off">
-  <small class="text-muted">Select from inventory above, or type a name if not listed.</small>
-
-  <label class="form-label mt-3">Quantity</label>
-  <input id="qty" class="form-control" type="number" min="1" max="999" placeholder="e.g. 10">
-  <small id="stockInfo" class="text-muted"></small>
-
-  <label class="form-label mt-3">Lab test (optional)</label>
-  <select id="test" class="form-select">
-    <option value="">-- No test --</option>
-    {% for t in tests %}
-    <option value="{{ t | e }}">{{ t | e }}</option>
-    {% endfor %}
-  </select>
-
-  <button id="submitBtn"
-    data-pid="{{ patient.id | int }}"
-    onclick="submitForm(this)"
-    class="btn btn-success mt-4 w-100">
-    Submit prescription
-  </button>
-
+  <div class="col-md-5">
+    <div class="hcard">
+      <div class="hcard-title"><i class="bi bi-clock-history"></i> Previous prescriptions</div>
+      <div id="prevLoading" class="loading-state"><div class="spinner"></div> Loading...</div>
+      <div id="prevList"></div>
+      <div id="prevEmpty" class="empty-state" style="display:none"><i class="bi bi-prescription"></i><p>No prescriptions yet</p></div>
+    </div>
+  </div>
 </div>
 
 <script>
-  function showBanner(msg, type) {
-    const b = document.getElementById('banner');
-    b.className = 'alert alert-' + type;
-    b.textContent = msg;
-    b.style.display = 'block';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
+function showBanner(msg,type){
+  const b=document.getElementById('banner');
+  b.className='alert-banner alert-'+type;
+  b.textContent=msg; b.style.display='block';
+  b.style.animation='none'; b.offsetHeight; b.style.animation='slideDown .25s ease';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 
-  // Load medicine dropdown from pharmacy inventory
-  async function loadMeds() {
-    try {
-      const res = await fetch('/meds');
-      if (!res.ok) return;
-      const data = await res.json();
-      const sel = document.getElementById('medicine');
-      data.forEach(m => {
-        const o = document.createElement('option');
-        o.value = m.name;
-        o.dataset.stock = m.stock;
-        o.textContent = `${m.name} — Stock: ${m.stock} — PKR ${Number(m.price).toFixed(2)}`;
-        sel.appendChild(o);
-      });
-    } catch(e) {}
-  }
+function escHtml(s){const d=document.createElement('div');d.appendChild(document.createTextNode(String(s)));return d.innerHTML;}
 
-  document.getElementById('medicine').addEventListener('change', function() {
-    const opt = this.options[this.selectedIndex];
-    const info = document.getElementById('stockInfo');
-    if (opt && opt.dataset.stock !== undefined) {
-      info.textContent = `Available stock: ${opt.dataset.stock} units`;
-      document.getElementById('medicineCustom').value = '';
-    } else {
-      info.textContent = '';
-    }
-  });
+async function loadMeds(){
+  try{
+    const res=await fetch('/meds');
+    if(!res.ok) return;
+    const data=await res.json();
+    const sel=document.getElementById('medicine');
+    data.forEach(m=>{
+      const o=document.createElement('option');
+      o.value=m.name; o.dataset.stock=m.stock;
+      o.textContent=`${m.name} — Stock: ${m.stock} — PKR ${Number(m.price).toFixed(2)}`;
+      sel.appendChild(o);
+    });
+  }catch(e){}
+}
 
-  async function submitForm(btn) {
-    const selectedMed = document.getElementById('medicine').value.trim();
-    const customMed   = document.getElementById('medicineCustom').value.trim();
-    const medicine    = selectedMed || customMed;
-    const qty         = document.getElementById('qty').value;
-    const test        = document.getElementById('test').value;
-    const pid         = btn.dataset.pid;
+document.getElementById('medicine').addEventListener('change',function(){
+  const opt=this.options[this.selectedIndex];
+  const info=document.getElementById('stockInfo');
+  if(opt&&opt.dataset.stock!==undefined&&opt.value){
+    const s=Number(opt.dataset.stock);
+    info.innerHTML=`<span style="color:${s<10?'#dc2626':'#15803d'}">Available stock: ${s} units${s<10?' — Low stock!':''}</span>`;
+    document.getElementById('medicineCustom').value='';
+  } else { info.textContent=''; }
+});
 
-    if (!medicine) {
-      showBanner('Please select a medicine or type one manually.', 'warning'); return;
-    }
-    if (!qty || Number(qty) < 1) {
-      showBanner('Enter a valid quantity (minimum 1).', 'warning'); return;
-    }
+async function loadPrev(){
+  const pid={{ patient.id | int }};
+  try{
+    const res=await fetch('/my_patient_records/'+pid);
+    document.getElementById('prevLoading').style.display='none';
+    if(!res.ok){document.getElementById('prevEmpty').style.display='block';return;}
+    const data=await res.json();
+    if(!data.pres||data.pres.length===0){document.getElementById('prevEmpty').style.display='block';return;}
+    const listEl=document.getElementById('prevList');
+    data.pres.forEach(p=>{
+      const div=document.createElement('div');
+      div.className='hlist-item';
+      div.innerHTML=`<span style="font-size:14px">${escHtml(p.medicine)}</span><span class="badge-info">Qty: ${p.quantity}</span>`;
+      listEl.appendChild(div);
+    });
+  }catch(e){document.getElementById('prevLoading').style.display='none';document.getElementById('prevEmpty').style.display='block';}
+}
 
-    btn.disabled = true;
-    btn.textContent = 'Saving...';
+async function submitForm(btn){
+  const selectedMed=document.getElementById('medicine').value.trim();
+  const customMed=document.getElementById('medicineCustom').value.trim();
+  const medicine=selectedMed||customMed;
+  const qty=document.getElementById('qty').value;
+  const test=document.getElementById('test').value;
+  const pid=btn.dataset.pid;
 
-    try {
-      const res = await fetch('/prescribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          patient_id: Number(pid),
-          medicine:   medicine,
-          qty:        Number(qty),
-          test:       test
-        })
-      });
+  if(!medicine){showBanner('Please select a medicine or type one manually.','warning');return;}
+  if(!qty||Number(qty)<1){showBanner('Enter a valid quantity (minimum 1).','warning');return;}
 
-      const data = await res.json();
+  btn.disabled=true;
+  btn.innerHTML='<div class="spinner" style="display:inline-block;border-color:rgba(255,255,255,.4);border-top-color:#fff;margin-right:6px"></div>Saving...';
 
-      if (!res.ok) {
-        showBanner(data.error || 'Failed to save. Please try again.', 'danger');
-        return;
-      }
+  try{
+    const res=await fetch('/prescribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient_id:Number(pid),medicine,qty:Number(qty),test})});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed to save. Please try again.','danger');return;}
+    showBanner('Prescription saved successfully.','success');
+    setTimeout(()=>window.location='/dashboard',1500);
+  }catch(e){showBanner('Network error. Check your connection.','danger');}
+  finally{btn.disabled=false;btn.innerHTML='<i class="bi bi-check2-circle"></i> Submit prescription';}
+}
 
-      showBanner('Prescription saved successfully.', 'success');
-      setTimeout(() => { window.location = '/dashboard'; }, 1500);
-
-    } catch (e) {
-      showBanner('Network error. Check your connection and try again.', 'danger');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Submit prescription';
-    }
-  }
-
-  loadMeds();
+loadMeds();
+loadPrev();
 </script>
-
 {% endblock %}
