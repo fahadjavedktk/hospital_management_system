@@ -1,183 +1,164 @@
 # Hospital Management System
- 
-A role-based hospital management web application built with **Python Flask**, **SQLAlchemy**, and **Bootstrap 5**. Supports five user roles — Admin, Doctor, Lab, Pharmacy, and Patient — each with their own secure dashboard.
- 
-Containerised with Docker and shipped with a GitHub Actions CI/CD pipeline.
- 
+
+A full-stack, role-based hospital management web application built with **Python Flask**, **SQLAlchemy**, and **Bootstrap 5**. Designed to manage patients, doctors, lab requests, and pharmacy inventory with a clean animated UI and a complete CI/CD pipeline.
+
+![CI/CD](https://github.com/fahadjavedktk/hospital_management_system/actions/workflows/ci-cd.yml/badge.svg)
+
 ---
- 
+
 ## Features
- 
-| Role | What they can do |
-|------|-----------------|
-| **Admin** | Add / delete patients, manage all records |
-| **Doctor** | View patient list, write prescriptions, order lab tests |
-| **Lab** | View pending lab requests, enter results |
-| **Pharmacy** | Add medicines, manage stock and pricing |
-| **Patient** | View their own lab results and prescriptions only |
- 
-**Security highlights**
-- Passwords hashed with Werkzeug (bcrypt-backed)
-- Role-based access control on every API endpoint
-- Session expires after 8 hours of inactivity
-- Full audit log — every sensitive action is recorded with user, action, and IP
+
+### 5 user roles with full access control
+
+| Role | Capabilities |
+|------|-------------|
+| **Admin** | Add/remove doctors, patients, staff accounts |
+| **Doctor** | View only their own assigned patients, write prescriptions, order lab tests, view lab reports and images instantly |
+| **Lab** | View all lab requests, enter results with text and drag-and-drop image upload |
+| **Pharmacy** | Add, edit, delete medicines — stock auto-deducts on prescription |
+| **Patient** | View their own lab results (with images) and prescriptions only |
+
+### Security highlights
+- Passwords hashed with Werkzeug — never stored in plain text
+- Role-based access control enforced on every backend endpoint
+- Doctor isolation — each doctor only sees and prescribes to their own patients
+- Session expiry after 8 hours
+- Full audit log — every action recorded with user, action, and IP
 - Input validation on all POST routes
-- Database rollback on every failed write
-- No secrets in source code — all config via environment variables
+- All secrets via environment variables — nothing hardcoded
+
+### Lab image reports
+- Lab staff upload X-ray, blood test, or any image via drag and drop
+- Stored as base64 — no separate file storage needed
+- Doctor sees image instantly in their Lab Reports tab
+- Patient sees image inline in their health dashboard
+
+### UI highlights
+- Animated hero landing page with floating gradient circles
+- Fixed topbar with colour-coded role chips
+- Role-aware sidebar navigation
+- Smooth fade-in and slide-in animations throughout
+- Stat cards on lab and pharmacy dashboards
+- Loading spinners, empty states, and inline banners — no browser alerts
+- Double-submit prevention on all forms
+
 ---
- 
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python 3.10, Flask 3.0.3 |
+| ORM | Flask-SQLAlchemy 3.1.1 |
+| Auth | Flask-Login 0.6.3 + Werkzeug |
+| Database (dev) | SQLite — auto-created, zero setup |
+| Database (prod) | PostgreSQL 15 |
+| Frontend | Bootstrap 5.3, Bootstrap Icons, Vanilla JS |
+| Server | Gunicorn 22.0.0 |
+| Container | Docker + Docker Compose |
+| CI/CD | GitHub Actions |
+| Testing | Pytest 8.2.2 + pytest-flask |
+
+---
+
 ## Project Structure
- 
+
 ```
-hospital_fixed/
-├── app.py                  # Main Flask application (routes, models, auth)
-├── test_app.py             # Pytest test suite (18 tests)
-├── requirements.txt        # Python dependencies with pinned versions
-├── Dockerfile              # Production Docker image (Gunicorn)
-├── docker-compose.yml      # Full stack: app + PostgreSQL
-├── ci-cd.yml               # GitHub Actions pipeline
-├── .env.example            # Template for environment variables
+hospital_management_system/
+├── app.py                    # Flask app — 935 lines, 28 routes, 7 models
+├── test_app.py               # 29 tests, 62%+ coverage
+├── migrate_db.py             # One-time database migration script
+├── requirements.txt          # Pinned dependencies
+├── Dockerfile                # Production image (Gunicorn, non-root user)
+├── docker-compose.yml        # App + PostgreSQL
+├── .env.example              # Environment variable template
 ├── .gitignore
+├── .github/
+│   └── workflows/
+│       └── ci-cd.yml         # GitHub Actions pipeline
 └── templates/
-    ├── base.html           # Shared navbar layout
-    ├── home.html           # Public landing page
-    ├── login.html          # Login form
-    ├── admin.html          # Admin dashboard
-    ├── doctor.html         # Doctor dashboard
-    ├── patient_form.html   # Doctor prescription form
-    ├── lab.html            # Lab dashboard
-    ├── pharmacy.html       # Pharmacy dashboard
-    ├── patient.html        # Patient self-view
-    └── user.html           # General user panel
+    ├── base.html             # Shared layout — topbar + sidebar
+    ├── home.html             # Animated landing page
+    ├── login.html            # Login with shake animation
+    ├── admin.html            # 3-tab admin dashboard
+    ├── doctor.html           # Patients + lab reports tabs
+    ├── patient_form.html     # Prescription form with history
+    ├── lab.html              # Lab requests with image upload
+    ├── pharmacy.html         # Inventory with edit modal
+    └── patient.html          # Patient health record with images
 ```
- 
+
 ---
- 
-## Requirements
- 
-- Python 3.10 or higher
-- pip
-- Docker + Docker Compose (for containerised deployment)
+
+## Database Models
+
+| Table | Purpose |
+|-------|---------|
+| `user_account` | All users — hashed passwords, roles, active status |
+| `doctor` | Doctor profiles — name, specialisation, phone, linked login |
+| `patient` | Patient records — linked to doctor and optional user account |
+| `prescription` | Prescriptions — medicine name and quantity |
+| `lab_request` | Lab orders — result text and base64 image |
+| `medicine` | Pharmacy inventory — name, stock, price |
+| `audit_log` | Action log — user, action, IP, timestamp |
+
 ---
- 
-## How to Run
- 
-### Option 1 — Run locally (quickest, for development)
- 
-**Step 1 — Clone the repository**
+
+## Quick Start
+
+### Run locally (SQLite — zero setup)
+
 ```bash
-git clone https://github.com/YOUR_USERNAME/hospital-management-system.git
-cd hospital-management-system
-```
- 
-**Step 2 — Create a virtual environment**
-```bash
-# Windows
+# Clone
+git clone https://github.com/fahadjavedktk/hospital_management_system.git
+cd hospital_management_system
+
+# Virtual environment
 python -m venv venv
-venv\Scripts\activate
- 
-# macOS / Linux
-python3 -m venv venv
-source venv/bin/activate
-```
- 
-**Step 3 — Install dependencies**
-```bash
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # macOS / Linux
+
+# Install
 pip install -r requirements.txt
-```
- 
-**Step 4 — Create your environment file**
-```bash
-# Copy the example file
-cp .env.example .env
-```
- 
-Open `.env` and set your `SECRET_KEY`:
-```
-SECRET_KEY=any-long-random-string-you-choose
-DATABASE_URL=sqlite:///hospital.db
-FLASK_DEBUG=false
-```
- 
-Generate a proper secret key with:
-```bash
-python3 -c "import secrets; print(secrets.token_hex(32))"
-```
- 
-**Step 5 — Run the app**
-```bash
+
+# Environment file
+copy .env.example .env       # Windows
+# cp .env.example .env       # macOS / Linux
+
+# Generate and set a secret key in .env
+python -c "import secrets; print(secrets.token_hex(32))"
+
+# Run
 python app.py
 ```
- 
-Open your browser at: **http://localhost:5000**
- 
+
+Open **http://localhost:5000**
+
 ---
- 
-### Option 2 — Run with Docker (recommended for production)
- 
-**Step 1 — Clone and enter the project**
+
+### Run with Docker + PostgreSQL
+
 ```bash
-git clone https://github.com/YOUR_USERNAME/hospital-management-system.git
-cd hospital-management-system
-```
- 
-**Step 2 — Create your environment file**
-```bash
-cp .env.example .env
-```
- 
-Edit `.env` with real values:
-```
-SECRET_KEY=your-long-random-secret-key
-DATABASE_URL=postgresql://hospital_user:YOUR_PASSWORD@db:5432/hospital
-DB_PASSWORD=YOUR_PASSWORD
-FLASK_DEBUG=false
-```
- 
-**Step 3 — Build and start**
-```bash
+# Fill in .env (set SECRET_KEY, DATABASE_URL, DB_PASSWORD)
+copy .env.example .env
+
+# Build and start
 docker compose up --build
 ```
- 
-Open your browser at: **http://localhost:5000**
- 
-To run in the background:
+
+Open **http://localhost:5000**
+
 ```bash
-docker compose up --build -d
+docker compose down                          # Stop
+docker compose down --volumes --remove-orphans   # Full reset
 ```
- 
-To stop:
-```bash
-docker compose down
-```
- 
-To stop and delete all data:
-```bash
-docker compose down -v
-```
- 
+
 ---
- 
-### Option 3 — Run with SQLite only (no PostgreSQL)
- 
-If you do not want to use PostgreSQL, keep the `.env` as:
-```
-DATABASE_URL=sqlite:///hospital.db
-```
- 
-Then just run:
-```bash
-python app.py
-```
- 
-SQLite is fine for development and small deployments. For a real hospital with multiple concurrent users, use PostgreSQL (Option 2).
- 
----
- 
-## Default Login Credentials
- 
-> **Change all passwords immediately after first login in production.**
- 
+
+## Default Credentials
+
+> Change all passwords immediately in production.
+
 | Username | Password | Role |
 |----------|----------|------|
 | `admin` | `Admin@2024!` | Admin |
@@ -185,111 +166,77 @@ SQLite is fine for development and small deployments. For a real hospital with m
 | `lab` | `Lab@2024!` | Lab |
 | `pharma` | `Pharma@2024!` | Pharmacy |
 | `patient` | `Patient@2024!` | Patient |
- 
-These are created automatically on first startup.
- 
+
+Created automatically on first startup.
+
 ---
- 
-## Running the Tests
- 
+
+## Adding a Doctor (correct workflow)
+
+1. Log in as **admin**
+2. Go to **Admin panel → Doctors tab**
+3. Enter the doctor's name and specialisation
+4. Fill in **Username** and **Password** to create a login account — this links the profile to the account so the doctor only sees their own patients
+5. Click **Add doctor**
+6. Go to **Patients tab** — the doctor now appears in the dropdown
+
+---
+
+## Running Tests
+
 ```bash
-# Make sure your virtual environment is active
 pytest
- 
-# With coverage report
-pip install pytest-cov
+
+# With coverage
 pytest --cov=app --cov-report=term-missing
 ```
- 
-The test suite covers:
-- Home page loads correctly
-- Login succeeds / fails / rejects empty credentials
-- All dashboards redirect unauthenticated users
-- Admin can add patients, invalid data is rejected
-- Role isolation — patients cannot access patient list, pharmacy cannot view lab, etc.
+
+Test coverage includes login, auth protection, doctor/patient/staff management, role isolation, pharmacy CRUD, prescriptions with stock deduction, and lab result updates.
+
 ---
- 
+
 ## CI/CD Pipeline
- 
-The GitHub Actions pipeline runs automatically on every push to `main`:
- 
-1. **Checkout** — pulls the latest code
-2. **Setup Python 3.10**
-3. **Install dependencies**
-4. **Lint** — `flake8` checks code style (max line length 120)
-5. **Security scan** — `bandit` scans for Python security issues
-6. **Run tests** — `pytest` with 70% minimum coverage requirement
-7. **Build Docker image** — verifies the container builds cleanly
-8. **Smoke test** — starts the container and checks `http://localhost:5000/` returns 200
-To use the pipeline, push your code to GitHub with the `ci-cd.yml` file at `.github/workflows/ci-cd.yml`.
- 
+
+Every push to `main` automatically runs:
+
+| Step | Tool | What it checks |
+|------|------|---------------|
+| Lint | flake8 | Code style in test file |
+| Security scan | bandit | Security issues in app.py |
+| Tests | pytest | 29 tests with 50% min coverage |
+| Docker build | docker build | Container builds successfully |
+| Smoke test | curl | App responds on port 5000 |
+
 ---
- 
-## Database
- 
-### Development
-Uses **SQLite** by default. The database file `hospital.db` is created automatically in the project folder on first run. No setup needed.
- 
-### Production (PostgreSQL)
-For hospital deployment, switch to PostgreSQL by setting:
-```
-DATABASE_URL=postgresql://hospital_user:PASSWORD@db:5432/hospital
-```
-This is already configured in `docker-compose.yml`. PostgreSQL handles concurrent users, provides proper transactions, and supports automated backups.
- 
-### Database tables
- 
-| Table | Purpose |
-|-------|---------|
-| `user_account` | All system users with hashed passwords and roles |
-| `patient` | Patient records linked to user accounts |
-| `prescription` | Doctor-issued prescriptions (medicine + quantity) |
-| `lab_request` | Lab test orders and results |
-| `medicine` | Pharmacy inventory with stock and price |
-| `audit_log` | Immutable record of every sensitive action |
- 
----
- 
-## Environment Variables Reference
- 
+
+## Environment Variables
+
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `SECRET_KEY` | Yes | Flask session signing key. Must be random and secret. |
-| `DATABASE_URL` | Yes | SQLAlchemy connection string. |
-| `DB_PASSWORD` | Docker only | PostgreSQL password used by docker-compose. |
-| `FLASK_DEBUG` | No | Set to `true` only for local dev. Default: `false`. |
- 
+| `SECRET_KEY` | Yes | Flask session key — generate with `secrets.token_hex(32)` |
+| `DATABASE_URL` | Yes | `sqlite:///hospital.db` for dev, PostgreSQL URL for prod |
+| `DB_PASSWORD` | Docker only | PostgreSQL password for docker-compose |
+| `FLASK_DEBUG` | No | `true` for local dev only — never in production |
+
 ---
- 
-## Deployment Checklist (before going live)
- 
-- [ ] Change all default passwords in the database
-- [ ] Set a strong random `SECRET_KEY` (32+ characters)
-- [ ] Switch `DATABASE_URL` to PostgreSQL
+
+## Production Checklist
+
+- [ ] Change all default passwords
+- [ ] Set a strong random `SECRET_KEY`
+- [ ] Switch to PostgreSQL
 - [ ] Set `FLASK_DEBUG=false`
-- [ ] Put Nginx in front of the app for HTTPS (SSL certificate via Let's Encrypt)
-- [ ] Set up automated daily PostgreSQL backups (`pg_dump`)
-- [ ] Restrict server firewall to ports 80 and 443 only
-- [ ] Add users through the admin panel instead of using default accounts
+- [ ] Add Nginx reverse proxy with HTTPS (Let's Encrypt — free)
+- [ ] Set up daily automated database backups
+- [ ] Restrict server firewall to ports 80, 443, 22
+- [ ] Remove `/debug/doctor_link` route from app.py
+
 ---
- 
-## Tech Stack
- 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Python 3.10, Flask 3.0 |
-| Database ORM | Flask-SQLAlchemy |
-| Authentication | Flask-Login + Werkzeug password hashing |
-| Database (dev) | SQLite |
-| Database (prod) | PostgreSQL 15 |
-| Frontend | Bootstrap 5.3, Vanilla JS |
-| Server | Gunicorn (4 workers) |
-| Container | Docker + Docker Compose |
-| CI/CD | GitHub Actions |
-| Testing | Pytest + pytest-flask |
- 
----
- 
+
 ## License
- 
-MIT License. Free to use and modify.
+
+MIT — free to use and modify.
+
+---
+
+*Built with Flask · SQLAlchemy · Bootstrap 5 · Docker · GitHub Actions*
