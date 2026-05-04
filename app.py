@@ -61,10 +61,12 @@ class Patient(db.Model):
 
 
 class LabRequest(db.Model):
-    id         = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey("patient.id"), nullable=False)
-    test       = db.Column(db.String(100), nullable=False)
-    result     = db.Column(db.String(200), default="Pending")
+    id           = db.Column(db.Integer, primary_key=True)
+    patient_id   = db.Column(db.Integer, db.ForeignKey("patient.id"), nullable=False)
+    test         = db.Column(db.String(100), nullable=False)
+    result       = db.Column(db.String(200), default="Pending")
+    report_image = db.Column(db.Text, nullable=True)   # base64 encoded image
+    
 
 
 class Prescription(db.Model):
@@ -280,7 +282,8 @@ def add_doctor():
             u = UserAccount(username=username, role="doctor")
             u.set_password(password)
             db.session.add(u)
-            db.session.flush()   # get the id before commit
+            db.session.flush()        # write to DB to generate id
+            db.session.refresh(u)     # ensure u.id is populated from DB
             user_id = u.id
 
         doc = Doctor(
@@ -418,12 +421,24 @@ def patients():
     denied = role_required("admin", "doctor")
     if denied:
         return denied
-    p = Patient.query.all()
+
+    if current_user.role == "doctor":
+        # If doctor has a linked profile, show only their patients
+        # If no profile linked (account created via Staff tab), show all patients
+        doctor = Doctor.query.filter_by(user_id=int(current_user.id)).first()
+        if doctor:
+            p = Patient.query.filter_by(doctor_id=doctor.id).all()
+        else:
+            p = Patient.query.all()
+    else:
+        # Admin sees all patients
+        p = Patient.query.all()
+
     return jsonify([{
-        "id":     x.id,
-        "name":   x.name,
-        "age":    x.age,
-        "doctor": x.doctor.name if x.doctor else "Unassigned",
+        "id":        x.id,
+        "name":      x.name,
+        "age":       x.age,
+        "doctor":    x.doctor.name if x.doctor else "Unassigned",
         "doctor_id": x.doctor_id
     } for x in p])
 
@@ -523,6 +538,67 @@ def deactivate_staff(user_id):
 
 
 # ======================================================
+# ADMIN — DIAGNOSTICS
+# ======================================================
+
+@app.route("/debug/doctor_links")
+@login_required
+def debug_doctor_links():
+    """Admin-only: shows which doctor accounts are linked to which profiles."""
+    denied = role_required("admin")
+    if denied:
+        return denied
+
+    doctors  = Doctor.query.all()
+    accounts = UserAccount.query.filter_by(role="doctor").all()
+
+    return jsonify({
+        "doctor_profiles": [{
+            "id":       d.id,
+            "name":     d.name,
+            "user_id":  d.user_id,
+            "linked_username": UserAccount.query.get(d.user_id).username if d.user_id else None
+        } for d in doctors],
+        "doctor_accounts": [{
+            "id":       u.id,
+            "username": u.username,
+            "is_active": u.is_active
+        } for u in accounts]
+    })
+
+
+@app.route("/link_doctor", methods=["POST"])
+@login_required
+def link_doctor():
+    """Admin: link an existing doctor login account to a doctor profile."""
+    denied = role_required("admin")
+    if denied:
+        return denied
+
+    data       = request.get_json(silent=True) or {}
+    doctor_id  = data.get("doctor_id")
+    account_id = data.get("account_id")
+
+    if not doctor_id or not account_id:
+        return jsonify({"error": "doctor_id and account_id are required"}), 400
+
+    doctor  = Doctor.query.get_or_404(int(doctor_id))
+    account = UserAccount.query.get_or_404(int(account_id))
+
+    if account.role != "doctor":
+        return jsonify({"error": "That account is not a doctor role"}), 400
+
+    try:
+        doctor.user_id  = account.id
+        db.session.commit()
+        audit(f"LINK_DOCTOR doctor_id={doctor_id} account_id={account_id}")
+        return jsonify({"msg": f"Dr. {doctor.name} linked to account '{account.username}'"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+# ======================================================
 # DOCTOR
 # ======================================================
 
@@ -532,7 +608,15 @@ def patient_detail(patient_id):
     denied = role_required("doctor")
     if denied:
         return denied
+
     p = Patient.query.get_or_404(patient_id)
+
+    # If doctor has a linked profile, verify patient is assigned to them
+    # If no profile linked yet (e.g. account created via Staff tab), allow access
+    doctor = Doctor.query.filter_by(user_id=int(current_user.id)).first()
+    if doctor and p.doctor_id != doctor.id:
+        return "Access denied — this patient is not assigned to you.", 403
+
     audit(f"VIEW_PATIENT id={patient_id}")
     return render_template("patient_form.html", patient=p, tests=LAB_TESTS)
 
@@ -560,6 +644,20 @@ def prescribe():
         return jsonify({"error": "Medicine name is required"}), 400
 
     patient = Patient.query.get_or_404(int(patient_id))
+
+    # Security: if doctor has a linked profile, verify patient is assigned to them
+    # If no profile linked (account created separately), allow prescribing
+    doctor = Doctor.query.filter_by(user_id=int(current_user.id)).first()
+    if doctor and patient.doctor_id != doctor.id:
+        return jsonify({"error": "Access denied — this patient is not assigned to you."}), 403
+
+    # Check stock BEFORE writing anything to DB
+    med_record = Medicine.query.filter(
+        db.func.lower(Medicine.name) == medicine.lower()
+    ).first()
+    if med_record and med_record.stock < qty:
+        return jsonify({"error": f"Insufficient stock for {medicine}. Available: {med_record.stock}"}), 400
+
     try:
         db.session.add(Prescription(
             patient_id=patient.id,
@@ -572,20 +670,15 @@ def prescribe():
                 test=test,
                 result="Pending"
             ))
-        # Deduct stock if medicine exists in inventory
-        med_record = Medicine.query.filter(
-            db.func.lower(Medicine.name) == medicine.lower()
-        ).first()
+        # Deduct stock
         if med_record:
-            if med_record.stock < qty:
-                return jsonify({"error": f"Insufficient stock for {medicine}. Available: {med_record.stock}"}), 400
             med_record.stock -= qty
         db.session.commit()
         audit(f"PRESCRIBE patient_id={patient.id} medicine={medicine} qty={qty}")
         return jsonify({"msg": "Saved"})
-    except Exception:
+    except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "Failed to save prescription"}), 500
+        return jsonify({"error": f"Failed to save prescription: {str(e)}"}), 500
 
 
 # ======================================================
@@ -607,8 +700,11 @@ def lab():
         "id":           l.id,
         "patient_id":   l.patient_id,
         "patient_name": p.name,
+        "doctor_name":  p.doctor.name if p.doctor else "Unassigned",
         "test":         l.test,
-        "result":       l.result
+        "result":       l.result,
+        "has_image":    bool(l.report_image),
+        "report_image": l.report_image or ""
     } for l, p in requests])
 
 
@@ -619,22 +715,44 @@ def lab_update():
     if denied:
         return denied
 
-    data   = request.get_json(silent=True) or {}
-    lab_id = data.get("id")
-    result = str(data.get("result", "")).strip()
+    data         = request.get_json(silent=True) or {}
+    lab_id       = data.get("id")
+    result       = str(data.get("result", "")).strip()
+    report_image = data.get("report_image", None)   # base64 string or None
 
     if not result:
-        return jsonify({"error": "Result is required"}), 400
+        return jsonify({"error": "Result text is required"}), 400
 
     lr = LabRequest.query.get_or_404(int(lab_id))
     try:
         lr.result = result
+        if report_image:
+            # Validate it looks like a base64 image
+            if report_image.startswith("data:image/"):
+                lr.report_image = report_image
+            else:
+                return jsonify({"error": "Invalid image format"}), 400
         db.session.commit()
-        audit(f"LAB_UPDATE id={lab_id} result={result}")
+        audit(f"LAB_UPDATE id={lab_id} result={result} has_image={bool(report_image)}")
         return jsonify({"msg": "Updated"})
-    except Exception:
+    except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "Failed to update"}), 500
+        return jsonify({"error": f"Failed to update: {str(e)}"}), 500
+
+
+@app.route("/lab_image/<int:lab_id>")
+@login_required
+def lab_image(lab_id):
+    """Return just the image for a specific lab request — accessible by doctor and lab."""
+    denied = role_required("lab", "doctor", "admin", "patient")
+    if denied:
+        return denied
+    lr = LabRequest.query.get_or_404(lab_id)
+    return jsonify({
+        "id":           lr.id,
+        "report_image": lr.report_image or "",
+        "has_image":    bool(lr.report_image)
+    })
 
 
 # ======================================================
@@ -749,13 +867,46 @@ def my():
         "patient": p.name,
         "doctor":  p.doctor.name if p.doctor else "Not assigned",
         "labs": [
-            {"test": l.test, "result": l.result}
+            {
+                "test":      l.test,
+                "result":    l.result,
+                "has_image": bool(l.report_image),
+                "image":     l.report_image or ""
+            }
             for l in LabRequest.query.filter_by(patient_id=p.id).all()
         ],
         "pres": [
             {"medicine": pr.medicine, "quantity": pr.quantity}
             for pr in Prescription.query.filter_by(patient_id=p.id).all()
         ]
+    })
+
+
+# ======================================================
+# DEBUG — admin only, remove in production
+# ======================================================
+
+@app.route("/debug/doctor_link")
+@login_required
+def debug_doctor_link():
+    """Shows the logged-in doctor's account link status."""
+    if current_user.role not in ("admin", "doctor"):
+        return jsonify({"error": "forbidden"}), 403
+    uid = int(current_user.id)
+    doctor = Doctor.query.filter_by(user_id=uid).first()
+    all_doctors = Doctor.query.all()
+    return jsonify({
+        "current_user_id":       uid,
+        "current_user_username": current_user.username,
+        "current_user_role":     current_user.role,
+        "doctor_profile_found":  doctor is not None,
+        "doctor_name":           doctor.name if doctor else None,
+        "doctor_user_id":        doctor.user_id if doctor else None,
+        "all_doctors": [{
+            "id": d.id,
+            "name": d.name,
+            "user_id": d.user_id
+        } for d in all_doctors]
     })
 
 

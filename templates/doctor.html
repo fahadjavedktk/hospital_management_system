@@ -4,17 +4,69 @@
 <div class="page-title"><i class="bi bi-clipboard2-pulse"></i> Doctor Panel</div>
 <div id="banner" class="alert-banner"></div>
 
-<div class="hcard">
-  <div class="hcard-title"><i class="bi bi-people"></i> Your patients <span id="count" class="badge-info ms-2" style="font-size:11px;padding:3px 10px;border-radius:20px"></span></div>
-  <div id="loading" class="loading-state"><div class="spinner"></div> Loading patients...</div>
-  <div id="patientList"></div>
-  <div id="emptyMsg" class="empty-state" style="display:none"><i class="bi bi-people"></i><p>No patients found</p></div>
+<div class="htab-nav" id="tabNav">
+  <button class="htab-btn active" onclick="showTab('patients',this)"><i class="bi bi-people"></i> My patients</button>
+  <button class="htab-btn" onclick="showTab('labreports',this)"><i class="bi bi-eyedropper"></i> Lab reports</button>
+</div>
+
+<!-- ══════════ PATIENTS ══════════ -->
+<div id="tab-patients">
+  <div class="hcard">
+    <div class="hcard-title"><i class="bi bi-people"></i> My patients <span id="count" class="badge-info ms-2" style="font-size:11px;padding:3px 10px;border-radius:20px"></span></div>
+    <div id="loading" class="loading-state"><div class="spinner"></div> Loading patients...</div>
+    <div id="patientList"></div>
+    <div id="emptyMsg" class="empty-state" style="display:none"><i class="bi bi-people"></i><p>No patients assigned to you yet</p></div>
+  </div>
+</div>
+
+<!-- ══════════ LAB REPORTS ══════════ -->
+<div id="tab-labreports" style="display:none">
+  <div class="hcard">
+    <div class="hcard-title" style="justify-content:space-between">
+      <span><i class="bi bi-file-earmark-medical"></i> Lab reports for your patients</span>
+      <button onclick="loadLabReports()" class="btn-secondary-custom"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+    </div>
+    <div id="labLoading" class="loading-state"><div class="spinner"></div> Loading reports...</div>
+    <div id="labList"></div>
+    <div id="labEmpty" class="empty-state" style="display:none"><i class="bi bi-clipboard2-x"></i><p>No lab reports yet for your patients</p></div>
+  </div>
+</div>
+
+<!-- Image Viewer -->
+<div id="viewerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:3000;align-items:center;justify-content:center" onclick="closeViewer()">
+  <div style="max-width:90vw;max-height:90vh;position:relative" onclick="event.stopPropagation()">
+    <button onclick="closeViewer()" style="position:absolute;top:-36px;right:0;background:none;border:none;color:#fff;font-size:24px;cursor:pointer">&#10005;</button>
+    <div id="viewerPatient" style="color:#fff;font-size:14px;font-weight:600;margin-bottom:8px"></div>
+    <img id="viewerImg" style="max-width:100%;max-height:80vh;border-radius:12px;object-fit:contain">
+  </div>
 </div>
 
 <script>
 function escHtml(s){const d=document.createElement('div');d.appendChild(document.createTextNode(String(s)));return d.innerHTML;}
 
-async function load(){
+function showBanner(msg,type){
+  const b=document.getElementById('banner');
+  b.className='alert-banner alert-'+type;
+  b.textContent=msg; b.style.display='block';
+  b.style.animation='none'; b.offsetHeight; b.style.animation='slideDown .25s ease';
+  setTimeout(()=>b.style.display='none',5000);
+}
+
+function showTab(name,btn){
+  ['patients','labreports'].forEach(t=>document.getElementById('tab-'+t).style.display=t===name?'block':'none');
+  document.querySelectorAll('.htab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(name==='labreports') loadLabReports();
+}
+
+function viewImage(src, patientName, test){
+  document.getElementById('viewerImg').src=src;
+  document.getElementById('viewerPatient').textContent=patientName+' — '+test;
+  document.getElementById('viewerOverlay').style.display='flex';
+}
+function closeViewer(){document.getElementById('viewerOverlay').style.display='none';}
+
+async function loadPatients(){
   const loadEl=document.getElementById('loading');
   const listEl=document.getElementById('patientList');
   const emptyEl=document.getElementById('emptyMsg');
@@ -29,19 +81,17 @@ async function load(){
     emptyEl.style.display='none';
     data.forEach((p,i)=>{
       const div=document.createElement('div');
-      div.className='hlist-item';
-      div.style.cursor='pointer';
-      div.style.animationDelay=(i*0.06)+'s';
+      div.className='hlist-item'; div.style.cursor='pointer'; div.style.animationDelay=(i*0.06)+'s';
       div.innerHTML=`
         <div style="display:flex;align-items:center;gap:12px">
-          <div style="width:40px;height:40px;border-radius:12px;background:#eff6ff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:#2563eb;flex-shrink:0">${escHtml(p.name[0].toUpperCase())}</div>
+          <div style="width:42px;height:42px;border-radius:12px;background:#eff6ff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#2563eb;flex-shrink:0">${escHtml(p.name[0].toUpperCase())}</div>
           <div>
             <div style="font-weight:600;font-size:14px">${escHtml(p.name)}</div>
-            <div style="font-size:12px;color:#64748b">Age: ${p.age} &middot; Dr. ${escHtml(p.doctor)}</div>
+            <div style="font-size:12px;color:#64748b">Age: ${p.age}</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:12px;color:#64748b">View &amp; prescribe</span>
+          <span style="font-size:12px;color:#64748b">Prescribe</span>
           <i class="bi bi-arrow-right-circle" style="color:#2563eb;font-size:18px"></i>
         </div>`;
       div.onclick=()=>window.location='/patient/'+p.id;
@@ -49,6 +99,40 @@ async function load(){
     });
   }catch(e){loadEl.textContent='Network error. Please refresh.';loadEl.style.color='#dc2626';}
 }
-load();
+
+async function loadLabReports(){
+  const loadEl=document.getElementById('labLoading');
+  const listEl=document.getElementById('labList');
+  const emptyEl=document.getElementById('labEmpty');
+  loadEl.style.display='block'; listEl.innerHTML='';
+  try{
+    const res=await fetch('/lab');
+    if(!res.ok){loadEl.textContent='Failed to load.';return;}
+    const all=await res.json();
+    loadEl.style.display='none';
+    if(all.length===0){emptyEl.style.display='block';return;}
+    emptyEl.style.display='none';
+    all.forEach((x,i)=>{
+      const isPending=x.result==='Pending';
+      const div=document.createElement('div');
+      div.className='hlist-item'; div.style.animationDelay=(i*0.05)+'s';
+      div.innerHTML=`
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:42px;height:42px;border-radius:12px;background:${isPending?'#fef3c7':'#f0fdf4'};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${isPending?'⏰':'✅'}</div>
+          <div>
+            <div style="font-weight:600;font-size:14px">${escHtml(x.patient_name)}</div>
+            <div style="font-size:12px;color:#64748b">${escHtml(x.test)} ${x.has_image?'<span style="color:#2563eb;font-weight:500">· 📎 Report image available</span>':''}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${x.has_image?`<button class="btn-secondary-custom" onclick="viewImage('${x.report_image.replace(/'/g,"\\'")}','${escHtml(x.patient_name)}','${escHtml(x.test)}')">📷 View report</button>`:''}
+          <span class="${isPending?'badge-pending':'badge-done'}">${escHtml(x.result)}</span>
+        </div>`;
+      listEl.appendChild(div);
+    });
+  }catch(e){loadEl.textContent='Network error.';}
+}
+
+loadPatients();
 </script>
 {% endblock %}
