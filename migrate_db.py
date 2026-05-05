@@ -93,6 +93,37 @@ if tbl("patient") and col("patient", "age"):
     cur.execute("DROP TABLE patient_old")
     changes.append("Rebuilt patient table — added all new medical fields")
 
+# ── bill table ────────────────────────────────────────────────
+if not tbl("bill"):
+    cur.execute("""CREATE TABLE bill (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        patient_id       INTEGER NOT NULL REFERENCES patient(id),
+        bill_number      VARCHAR(20) UNIQUE NOT NULL,
+        consultation_fee REAL DEFAULT 0,
+        medicine_charges REAL DEFAULT 0,
+        lab_charges      REAL DEFAULT 0,
+        other_charges    REAL DEFAULT 0,
+        discount         REAL DEFAULT 0,
+        total_amount     REAL DEFAULT 0,
+        paid_amount      REAL DEFAULT 0,
+        payment_status   VARCHAR(20) DEFAULT 'Unpaid',
+        payment_method   VARCHAR(30),
+        notes            VARCHAR(500),
+        generated_date   VARCHAR(20),
+        paid_date        VARCHAR(20))""")
+    changes.append("Created 'bill' table")
+
+if not tbl("bill_item"):
+    cur.execute("""CREATE TABLE bill_item (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        bill_id     INTEGER NOT NULL REFERENCES bill(id),
+        description VARCHAR(200) NOT NULL,
+        category    VARCHAR(30) NOT NULL,
+        quantity    INTEGER DEFAULT 1,
+        unit_price  REAL DEFAULT 0,
+        total       REAL DEFAULT 0)""")
+    changes.append("Created 'bill_item' table")
+
 # ── appointment table ─────────────────────────────────────────
 if not tbl("appointment"):
     cur.execute("""CREATE TABLE appointment (

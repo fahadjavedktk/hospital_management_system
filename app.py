@@ -139,6 +139,39 @@ class Appointment(db.Model):
     doctor       = db.relationship("Doctor",  backref="appointments")
 
 
+class Bill(db.Model):
+    """Patient billing record."""
+    id                  = db.Column(db.Integer, primary_key=True)
+    patient_id          = db.Column(db.Integer, db.ForeignKey("patient.id"), nullable=False)
+    bill_number         = db.Column(db.String(20), unique=True, nullable=False)
+    consultation_fee    = db.Column(db.Float, nullable=False, default=0.0)
+    medicine_charges    = db.Column(db.Float, nullable=False, default=0.0)
+    lab_charges         = db.Column(db.Float, nullable=False, default=0.0)
+    other_charges       = db.Column(db.Float, nullable=False, default=0.0)
+    discount            = db.Column(db.Float, nullable=False, default=0.0)
+    total_amount        = db.Column(db.Float, nullable=False, default=0.0)
+    paid_amount         = db.Column(db.Float, nullable=False, default=0.0)
+    payment_status      = db.Column(db.String(20), nullable=False, default="Unpaid")
+    payment_method      = db.Column(db.String(30), nullable=True)
+    notes               = db.Column(db.String(500), nullable=True)
+    generated_date      = db.Column(db.String(20), nullable=True)
+    paid_date           = db.Column(db.String(20), nullable=True)
+
+    patient             = db.relationship("Patient", backref="bills")
+    items               = db.relationship("BillItem", backref="bill", cascade="all, delete-orphan")
+
+
+class BillItem(db.Model):
+    """Individual line items on a bill."""
+    id          = db.Column(db.Integer, primary_key=True)
+    bill_id     = db.Column(db.Integer, db.ForeignKey("bill.id"), nullable=False)
+    description = db.Column(db.String(200), nullable=False)
+    category    = db.Column(db.String(30),  nullable=False)  # Consultation/Medicine/Lab/Other
+    quantity    = db.Column(db.Integer,     nullable=False, default=1)
+    unit_price  = db.Column(db.Float,       nullable=False, default=0.0)
+    total       = db.Column(db.Float,       nullable=False, default=0.0)
+
+
 class AuditLog(db.Model):
     id         = db.Column(db.Integer, primary_key=True)
     user_id    = db.Column(db.String(80))
@@ -1342,6 +1375,236 @@ def appointments_today():
         count = 0
 
     return jsonify({"count": count, "date": today})
+
+
+# ======================================================
+# BILLING
+# ======================================================
+
+def generate_bill_number():
+    """Generate a unique bill number like BILL-0001."""
+    last = Bill.query.order_by(Bill.id.desc()).first()
+    num  = (last.id + 1) if last else 1
+    return f"BILL-{num:04d}"
+
+
+@app.route("/bills")
+@login_required
+def get_bills():
+    denied = role_required("admin", "patient")
+    if denied:
+        return denied
+
+    if current_user.role == "patient":
+        p = Patient.query.filter_by(user_id=int(current_user.id)).first()
+        if not p:
+            return jsonify([])
+        bills = Bill.query.filter_by(patient_id=p.id).order_by(Bill.id.desc()).all()
+    else:
+        bills = Bill.query.order_by(Bill.id.desc()).all()
+
+    return jsonify([{
+        "id":               b.id,
+        "bill_number":      b.bill_number,
+        "patient_id":       b.patient_id,
+        "patient_name":     b.patient.name if b.patient else "",
+        "consultation_fee": b.consultation_fee,
+        "medicine_charges": b.medicine_charges,
+        "lab_charges":      b.lab_charges,
+        "other_charges":    b.other_charges,
+        "discount":         b.discount,
+        "total_amount":     b.total_amount,
+        "paid_amount":      b.paid_amount,
+        "payment_status":   b.payment_status,
+        "payment_method":   b.payment_method or "",
+        "notes":            b.notes or "",
+        "generated_date":   b.generated_date or "",
+        "paid_date":        b.paid_date or "",
+        "items": [{
+            "description": i.description,
+            "category":    i.category,
+            "quantity":    i.quantity,
+            "unit_price":  i.unit_price,
+            "total":       i.total
+        } for i in b.items]
+    } for b in bills])
+
+
+@app.route("/generate_bill", methods=["POST"])
+@login_required
+def generate_bill():
+    denied = role_required("admin")
+    if denied:
+        return denied
+
+    from datetime import date as _date
+    data               = request.get_json(silent=True) or {}
+    patient_id         = data.get("patient_id")
+    consultation_fee   = float(data.get("consultation_fee", 0) or 0)
+    lab_fee_per_test   = float(data.get("lab_fee_per_test", 500) or 500)
+    other_charges      = float(data.get("other_charges", 0) or 0)
+    discount           = float(data.get("discount", 0) or 0)
+    notes              = str(data.get("notes", "")).strip() or None
+
+    if not patient_id:
+        return jsonify({"error": "Please select a patient"}), 400
+
+    patient = Patient.query.get_or_404(int(patient_id))
+
+    # ── Auto-calculate medicine charges from prescriptions ────
+    prescriptions = Prescription.query.filter_by(patient_id=patient.id).all()
+    medicine_charges = 0.0
+    med_items = []
+    for rx in prescriptions:
+        med = Medicine.query.filter(
+            db.func.lower(Medicine.name) == rx.medicine.lower()
+        ).first()
+        unit_price = med.price if med else 0.0
+        total      = unit_price * rx.quantity
+        medicine_charges += total
+        med_items.append({
+            "description": f"{rx.medicine}" + (f" ({rx.dosage})" if rx.dosage else ""),
+            "category":    "Medicine",
+            "quantity":    rx.quantity,
+            "unit_price":  unit_price,
+            "total":       total
+        })
+
+    # ── Auto-calculate lab charges ────────────────────────────
+    lab_requests = LabRequest.query.filter_by(patient_id=patient.id).all()
+    lab_charges  = len(lab_requests) * lab_fee_per_test
+    lab_items    = [{
+        "description": lr.test,
+        "category":    "Lab",
+        "quantity":    1,
+        "unit_price":  lab_fee_per_test,
+        "total":       lab_fee_per_test
+    } for lr in lab_requests]
+
+    # ── Total ─────────────────────────────────────────────────
+    subtotal     = consultation_fee + medicine_charges + lab_charges + other_charges
+    total_amount = max(0.0, subtotal - discount)
+
+    try:
+        bill = Bill(
+            patient_id       = patient.id,
+            bill_number      = generate_bill_number(),
+            consultation_fee = consultation_fee,
+            medicine_charges = medicine_charges,
+            lab_charges      = lab_charges,
+            other_charges    = other_charges,
+            discount         = discount,
+            total_amount     = total_amount,
+            paid_amount      = 0.0,
+            payment_status   = "Unpaid",
+            notes            = notes,
+            generated_date   = str(_date.today())
+        )
+        db.session.add(bill)
+        db.session.flush()  # get bill.id
+
+        # Add line items
+        if consultation_fee > 0:
+            db.session.add(BillItem(
+                bill_id=bill.id, description="Consultation fee",
+                category="Consultation", quantity=1,
+                unit_price=consultation_fee, total=consultation_fee
+            ))
+        for item in med_items:
+            db.session.add(BillItem(bill_id=bill.id, **item))
+        for item in lab_items:
+            db.session.add(BillItem(bill_id=bill.id, **item))
+        if other_charges > 0:
+            db.session.add(BillItem(
+                bill_id=bill.id, description="Other charges",
+                category="Other", quantity=1,
+                unit_price=other_charges, total=other_charges
+            ))
+
+        db.session.commit()
+        audit(f"GENERATE_BILL bill={bill.bill_number} patient={patient.id} total={total_amount}")
+        return jsonify({"msg": f"Bill {bill.bill_number} generated", "id": bill.id, "bill_number": bill.bill_number})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to generate bill: {str(e)}"}), 500
+
+
+@app.route("/update_payment/<int:bill_id>", methods=["POST"])
+@login_required
+def update_payment(bill_id):
+    denied = role_required("admin")
+    if denied:
+        return denied
+
+    from datetime import date as _date
+    data           = request.get_json(silent=True) or {}
+    paid_amount    = float(data.get("paid_amount", 0) or 0)
+    payment_method = str(data.get("payment_method", "")).strip() or None
+
+    bill = Bill.query.get_or_404(bill_id)
+
+    try:
+        bill.paid_amount    = paid_amount
+        bill.payment_method = payment_method
+        if paid_amount >= bill.total_amount:
+            bill.payment_status = "Paid"
+            bill.paid_date      = str(_date.today())
+        elif paid_amount > 0:
+            bill.payment_status = "Partial"
+        else:
+            bill.payment_status = "Unpaid"
+        db.session.commit()
+        audit(f"UPDATE_PAYMENT bill={bill.bill_number} paid={paid_amount} status={bill.payment_status}")
+        return jsonify({"msg": f"Payment updated — {bill.payment_status}", "status": bill.payment_status})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed: {str(e)}"}), 500
+
+
+@app.route("/bill/<int:bill_id>")
+@login_required
+def get_bill(bill_id):
+    """Get a single bill for invoice printing."""
+    denied = role_required("admin", "patient")
+    if denied:
+        return denied
+    bill = Bill.query.get_or_404(bill_id)
+    return jsonify({
+        "id":               bill.id,
+        "bill_number":      bill.bill_number,
+        "patient_name":     bill.patient.name if bill.patient else "",
+        "patient_phone":    bill.patient.phone or "",
+        "patient_cnic":     bill.patient.cnic or "",
+        "doctor_name":      bill.patient.doctor.name if bill.patient and bill.patient.doctor else "",
+        "consultation_fee": bill.consultation_fee,
+        "medicine_charges": bill.medicine_charges,
+        "lab_charges":      bill.lab_charges,
+        "other_charges":    bill.other_charges,
+        "discount":         bill.discount,
+        "total_amount":     bill.total_amount,
+        "paid_amount":      bill.paid_amount,
+        "payment_status":   bill.payment_status,
+        "payment_method":   bill.payment_method or "",
+        "notes":            bill.notes or "",
+        "generated_date":   bill.generated_date or "",
+        "paid_date":        bill.paid_date or "",
+        "items": [{
+            "description": i.description,
+            "category":    i.category,
+            "quantity":    i.quantity,
+            "unit_price":  i.unit_price,
+            "total":       i.total
+        } for i in bill.items]
+    })
+
+
+@app.route("/bills_page")
+@login_required
+def bills_page():
+    denied = role_required("admin", "patient")
+    if denied:
+        return redirect("/dashboard")
+    return render_template("billing.html")
 
 
 # ======================================================
