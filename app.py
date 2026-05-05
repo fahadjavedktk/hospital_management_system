@@ -52,12 +52,39 @@ class Doctor(db.Model):
 
 
 class Patient(db.Model):
-    id        = db.Column(db.Integer, primary_key=True)
-    name      = db.Column(db.String(100), nullable=False)
-    age       = db.Column(db.Integer, nullable=False)
-    doctor_id = db.Column(db.Integer, db.ForeignKey("doctor.id"), nullable=False)
-    user_id   = db.Column(db.Integer, db.ForeignKey("user_account.id"), nullable=True)
-    doctor    = db.relationship("Doctor", backref="patients")
+    id                    = db.Column(db.Integer, primary_key=True)
+    name                  = db.Column(db.String(100), nullable=False)
+    date_of_birth         = db.Column(db.String(20),  nullable=True)
+    gender                = db.Column(db.String(10),  nullable=True)
+    blood_group           = db.Column(db.String(5),   nullable=True)
+    cnic                  = db.Column(db.String(20),  nullable=True)
+    phone                 = db.Column(db.String(20),  nullable=True)
+    address               = db.Column(db.String(300), nullable=True)
+    emergency_name        = db.Column(db.String(100), nullable=True)
+    emergency_phone       = db.Column(db.String(20),  nullable=True)
+    allergies             = db.Column(db.String(500), nullable=True)
+    chronic_conditions    = db.Column(db.String(500), nullable=True)
+    admission_type        = db.Column(db.String(10),  nullable=True, default="OPD")
+    status                = db.Column(db.String(20),  nullable=True, default="Active")
+    admission_date        = db.Column(db.String(20),  nullable=True)
+    doctor_id             = db.Column(db.Integer, db.ForeignKey("doctor.id"), nullable=False)
+    user_id               = db.Column(db.Integer, db.ForeignKey("user_account.id"), nullable=True)
+    doctor                = db.relationship("Doctor", backref="patients")
+
+    @property
+    def age(self):
+        """Calculate age from date_of_birth automatically."""
+        if not self.date_of_birth:
+            return None
+        from datetime import date
+        try:
+            dob = date.fromisoformat(self.date_of_birth)
+            today = date.today()
+            return today.year - dob.year - (
+                (today.month, today.day) < (dob.month, dob.day)
+            )
+        except ValueError:
+            return None
 
 
 class LabRequest(db.Model):
@@ -66,14 +93,19 @@ class LabRequest(db.Model):
     test         = db.Column(db.String(100), nullable=False)
     result       = db.Column(db.String(200), default="Pending")
     report_image = db.Column(db.Text, nullable=True)   # base64 encoded image
-    
 
 
 class Prescription(db.Model):
-    id         = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey("patient.id"), nullable=False)
-    medicine   = db.Column(db.String(100), nullable=False)
-    quantity   = db.Column(db.Integer, nullable=False)
+    id           = db.Column(db.Integer, primary_key=True)
+    patient_id   = db.Column(db.Integer, db.ForeignKey("patient.id"), nullable=False)
+    medicine     = db.Column(db.String(100), nullable=False)
+    dosage       = db.Column(db.String(50),  nullable=True)   # e.g. 500mg, 10ml
+    quantity     = db.Column(db.Integer,     nullable=False)
+    frequency    = db.Column(db.String(50),  nullable=True)   # e.g. Twice daily
+    duration     = db.Column(db.String(50),  nullable=True)   # e.g. 7 days
+    instructions = db.Column(db.String(300), nullable=True)   # e.g. Take after meals
+    prescribed_date = db.Column(db.String(20), nullable=True) # auto-set on creation
+    doctor_id    = db.Column(db.Integer, db.ForeignKey("doctor.id"), nullable=True)
 
 
 class Medicine(db.Model):
@@ -81,6 +113,30 @@ class Medicine(db.Model):
     name  = db.Column(db.String(100), nullable=False)
     stock = db.Column(db.Integer, nullable=False, default=0)
     price = db.Column(db.Float, nullable=False, default=0.0)
+
+
+class LabTest(db.Model):
+    """Admin-managed list of available lab tests."""
+    id        = db.Column(db.Integer, primary_key=True)
+    name      = db.Column(db.String(100), nullable=False, unique=True)
+    category  = db.Column(db.String(50),  nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+
+
+class Appointment(db.Model):
+    """Patient appointments with doctors."""
+    id           = db.Column(db.Integer, primary_key=True)
+    patient_id   = db.Column(db.Integer, db.ForeignKey("patient.id"),  nullable=False)
+    doctor_id    = db.Column(db.Integer, db.ForeignKey("doctor.id"),   nullable=False)
+    date         = db.Column(db.String(20),  nullable=False)   # YYYY-MM-DD
+    time         = db.Column(db.String(10),  nullable=False)   # HH:MM
+    appt_type    = db.Column(db.String(20),  nullable=False, default="OPD")
+    status       = db.Column(db.String(20),  nullable=False, default="Scheduled")
+    notes        = db.Column(db.String(500), nullable=True)
+    created_at   = db.Column(db.String(20),  nullable=True)
+
+    patient      = db.relationship("Patient", backref="appointments")
+    doctor       = db.relationship("Doctor",  backref="appointments")
 
 
 class AuditLog(db.Model):
@@ -145,6 +201,30 @@ def seed_users():
             u = UserAccount(username=username, role=role)
             u.set_password(password)
             db.session.add(u)
+
+    # Seed default lab tests if none exist
+    if LabTest.query.count() == 0:
+        default_tests = [
+            ("X-Ray",             "Radiology"),
+            ("MRI",               "Radiology"),
+            ("CT Scan",           "Radiology"),
+            ("Ultrasound",        "Radiology"),
+            ("Blood Test (CBC)",  "Haematology"),
+            ("Blood Sugar (FBS)", "Haematology"),
+            ("HbA1c",             "Haematology"),
+            ("Blood Group",       "Haematology"),
+            ("LFTs",              "Biochemistry"),
+            ("RFTs",              "Biochemistry"),
+            ("Lipid Profile",     "Biochemistry"),
+            ("Thyroid Profile",   "Biochemistry"),
+            ("Urine Analysis",    "Microbiology"),
+            ("Urine Culture",     "Microbiology"),
+            ("ECG",               "Cardiology"),
+            ("Echocardiography",  "Cardiology"),
+        ]
+        for name, category in default_tests:
+            db.session.add(LabTest(name=name, category=category))
+
     db.session.commit()
 
 
@@ -374,6 +454,68 @@ def update_doctor(doctor_id):
 
 
 # ======================================================
+# ADMIN — LAB TEST MANAGEMENT
+# ======================================================
+
+@app.route("/lab_tests")
+@login_required
+def get_lab_tests_list():
+    denied = role_required("admin", "doctor", "lab")
+    if denied:
+        return denied
+    tests = LabTest.query.filter_by(is_active=True).order_by(LabTest.category, LabTest.name).all()
+    return jsonify([{
+        "id":       t.id,
+        "name":     t.name,
+        "category": t.category or ""
+    } for t in tests])
+
+
+@app.route("/add_lab_test", methods=["POST"])
+@login_required
+def add_lab_test():
+    denied = role_required("admin")
+    if denied:
+        return denied
+
+    data     = request.get_json(silent=True) or {}
+    name     = str(data.get("name", "")).strip()
+    category = str(data.get("category", "")).strip() or None
+
+    if not name:
+        return jsonify({"error": "Test name is required"}), 400
+    if LabTest.query.filter_by(name=name, is_active=True).first():
+        return jsonify({"error": f"'{name}' already exists"}), 400
+
+    try:
+        db.session.add(LabTest(name=name, category=category))
+        db.session.commit()
+        audit(f"ADD_LAB_TEST name={name}")
+        return jsonify({"msg": f"'{name}' added successfully"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to add: {str(e)}"}), 500
+
+
+@app.route("/delete_lab_test/<int:test_id>", methods=["DELETE"])
+@login_required
+def delete_lab_test(test_id):
+    denied = role_required("admin")
+    if denied:
+        return denied
+
+    t = LabTest.query.get_or_404(test_id)
+    try:
+        t.is_active = False
+        db.session.commit()
+        audit(f"DELETE_LAB_TEST id={test_id} name={t.name}")
+        return jsonify({"msg": f"'{t.name}' removed"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed: {str(e)}"}), 500
+
+
+# ======================================================
 # ADMIN — PATIENT MANAGEMENT
 # ======================================================
 
@@ -386,7 +528,6 @@ def add_patient():
 
     data      = request.get_json(silent=True) or {}
     name      = str(data.get("name", "")).strip()
-    age       = data.get("age")
     doctor_id = data.get("doctor_id")
 
     if not name:
@@ -394,22 +535,53 @@ def add_patient():
     if not doctor_id:
         return jsonify({"error": "Please select a doctor"}), 400
 
-    try:
-        age = int(age)
-        if age < 0 or age > 150:
-            raise ValueError
-    except (TypeError, ValueError):
-        return jsonify({"error": "Age must be a number between 0 and 150"}), 400
+    from datetime import date as _date
+
+    # ── Optional fields ────────────────────────────────────────
+    dob            = str(data.get("date_of_birth", "")).strip() or None
+    gender         = str(data.get("gender", "")).strip() or None
+    blood_group    = str(data.get("blood_group", "")).strip() or None
+    cnic           = str(data.get("cnic", "")).strip() or None
+    phone          = str(data.get("phone", "")).strip() or None
+    address        = str(data.get("address", "")).strip() or None
+    emg_name       = str(data.get("emergency_name", "")).strip() or None
+    emg_phone      = str(data.get("emergency_phone", "")).strip() or None
+    allergies      = str(data.get("allergies", "")).strip() or None
+    chronic        = str(data.get("chronic_conditions", "")).strip() or None
+    admission_type = str(data.get("admission_type", "OPD")).strip()
+
+    if dob:
+        try:
+            _date.fromisoformat(dob)
+        except ValueError:
+            return jsonify({"error": "Invalid date of birth format (use YYYY-MM-DD)"}), 400
 
     doctor = Doctor.query.get(int(doctor_id))
     if not doctor or not doctor.is_active:
         return jsonify({"error": "Selected doctor not found"}), 400
 
     try:
-        db.session.add(Patient(name=name, age=age, doctor_id=doctor.id))
+        p = Patient(
+            name               = name,
+            date_of_birth      = dob,
+            gender             = gender,
+            blood_group        = blood_group,
+            cnic               = cnic,
+            phone              = phone,
+            address            = address,
+            emergency_name     = emg_name,
+            emergency_phone    = emg_phone,
+            allergies          = allergies,
+            chronic_conditions = chronic,
+            admission_type     = admission_type,
+            admission_date     = str(_date.today()),
+            status             = "Active",
+            doctor_id          = doctor.id
+        )
+        db.session.add(p)
         db.session.commit()
-        audit(f"ADD_PATIENT name={name} doctor_id={doctor_id}")
-        return jsonify({"msg": "Patient added"})
+        audit(f"ADD_PATIENT name={name} doctor_id={doctor_id} type={admission_type}")
+        return jsonify({"msg": "Patient added", "id": p.id})
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Failed to add patient: {str(e)}"}), 500
@@ -435,11 +607,24 @@ def patients():
         p = Patient.query.all()
 
     return jsonify([{
-        "id":        x.id,
-        "name":      x.name,
-        "age":       x.age,
-        "doctor":    x.doctor.name if x.doctor else "Unassigned",
-        "doctor_id": x.doctor_id
+        "id":                 x.id,
+        "name":               x.name,
+        "age":                x.age,
+        "date_of_birth":      x.date_of_birth or "",
+        "gender":             x.gender or "",
+        "blood_group":        x.blood_group or "",
+        "cnic":               x.cnic or "",
+        "phone":              x.phone or "",
+        "address":            x.address or "",
+        "emergency_name":     x.emergency_name or "",
+        "emergency_phone":    x.emergency_phone or "",
+        "allergies":          x.allergies or "",
+        "chronic_conditions": x.chronic_conditions or "",
+        "admission_type":     x.admission_type or "OPD",
+        "admission_date":     x.admission_date or "",
+        "status":             x.status or "Active",
+        "doctor":             x.doctor.name if x.doctor else "Unassigned",
+        "doctor_id":          x.doctor_id
     } for x in p])
 
 
@@ -628,10 +813,15 @@ def prescribe():
     if denied:
         return denied
 
-    data       = request.get_json(silent=True) or {}
-    patient_id = data.get("patient_id")
-    medicine   = str(data.get("medicine", "")).strip()
-    test       = str(data.get("test", "")).strip()
+    from datetime import date as _date
+    data         = request.get_json(silent=True) or {}
+    patient_id   = data.get("patient_id")
+    medicine     = str(data.get("medicine", "")).strip()
+    test         = str(data.get("test", "")).strip()
+    dosage       = str(data.get("dosage", "")).strip() or None
+    frequency    = str(data.get("frequency", "")).strip() or None
+    duration     = str(data.get("duration", "")).strip() or None
+    instructions = str(data.get("instructions", "")).strip() or None
 
     try:
         qty = int(data.get("qty", 0))
@@ -659,10 +849,17 @@ def prescribe():
         return jsonify({"error": f"Insufficient stock for {medicine}. Available: {med_record.stock}"}), 400
 
     try:
+        rx_doctor = Doctor.query.filter_by(user_id=int(current_user.id)).first()
         db.session.add(Prescription(
-            patient_id=patient.id,
-            medicine=medicine,
-            quantity=qty
+            patient_id      = patient.id,
+            medicine        = medicine,
+            dosage          = dosage,
+            quantity        = qty,
+            frequency       = frequency,
+            duration        = duration,
+            instructions    = instructions,
+            prescribed_date = str(_date.today()),
+            doctor_id       = rx_doctor.id if rx_doctor else None
         ))
         if test and test in LAB_TESTS:
             db.session.add(LabRequest(
@@ -679,6 +876,27 @@ def prescribe():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Failed to save prescription: {str(e)}"}), 500
+
+
+@app.route("/patient_prescriptions/<int:patient_id>")
+@login_required
+def patient_prescriptions(patient_id):
+    """Return full prescription history for a patient — used by doctor panel."""
+    denied = role_required("doctor", "admin")
+    if denied:
+        return denied
+    p = Patient.query.get_or_404(patient_id)
+    rxs = Prescription.query.filter_by(patient_id=p.id).all()
+    return jsonify([{
+        "id":           rx.id,
+        "medicine":     rx.medicine,
+        "dosage":       rx.dosage or "",
+        "quantity":     rx.quantity,
+        "frequency":    rx.frequency or "",
+        "duration":     rx.duration or "",
+        "instructions": rx.instructions or "",
+        "date":         rx.prescribed_date or ""
+    } for rx in rxs])
 
 
 # ======================================================
@@ -864,8 +1082,14 @@ def my():
 
     audit(f"PATIENT_SELF_VIEW patient_id={p.id}")
     return jsonify({
-        "patient": p.name,
-        "doctor":  p.doctor.name if p.doctor else "Not assigned",
+        "patient":        p.name,
+        "age":            p.age,
+        "gender":         p.gender or "",
+        "blood_group":    p.blood_group or "",
+        "admission_type": p.admission_type or "OPD",
+        "admission_date": p.admission_date or "",
+        "allergies":      p.allergies or "",
+        "doctor":         p.doctor.name if p.doctor else "Not assigned",
         "labs": [
             {
                 "test":      l.test,
@@ -876,7 +1100,15 @@ def my():
             for l in LabRequest.query.filter_by(patient_id=p.id).all()
         ],
         "pres": [
-            {"medicine": pr.medicine, "quantity": pr.quantity}
+            {
+                "medicine":     pr.medicine,
+                "dosage":       pr.dosage or "",
+                "quantity":     pr.quantity,
+                "frequency":    pr.frequency or "",
+                "duration":     pr.duration or "",
+                "instructions": pr.instructions or "",
+                "date":         pr.prescribed_date or ""
+            }
             for pr in Prescription.query.filter_by(patient_id=p.id).all()
         ]
     })
@@ -908,6 +1140,208 @@ def debug_doctor_link():
             "user_id": d.user_id
         } for d in all_doctors]
     })
+
+
+# ======================================================
+# APPOINTMENTS
+# ======================================================
+
+@app.route("/appointments_page")
+@login_required
+def appointments_page():
+    """Render the appointments UI page."""
+    denied = role_required("admin", "doctor", "patient")
+    if denied:
+        return redirect("/dashboard")
+    return render_template("appointments.html")
+
+
+@app.route("/appointments")
+@login_required
+def get_appointments():
+    """
+    Admin  — all appointments
+    Doctor — only their appointments
+    Patient— only their appointments
+    """
+    from datetime import date as _date
+    role = current_user.role
+
+    if role == "admin":
+        appts = Appointment.query.order_by(
+            Appointment.date.desc(), Appointment.time
+        ).all()
+
+    elif role == "doctor":
+        doctor = Doctor.query.filter_by(user_id=int(current_user.id)).first()
+        if not doctor:
+            return jsonify([])
+        appts = Appointment.query.filter_by(doctor_id=doctor.id).order_by(
+            Appointment.date.desc(), Appointment.time
+        ).all()
+
+    elif role == "patient":
+        patient = Patient.query.filter_by(user_id=int(current_user.id)).first()
+        if not patient:
+            return jsonify([])
+        appts = Appointment.query.filter_by(patient_id=patient.id).order_by(
+            Appointment.date.desc(), Appointment.time
+        ).all()
+
+    else:
+        return jsonify({"error": "Access denied"}), 403
+
+    today = str(_date.today())
+    return jsonify([{
+        "id":           a.id,
+        "patient_id":   a.patient_id,
+        "patient_name": a.patient.name if a.patient else "",
+        "doctor_id":    a.doctor_id,
+        "doctor_name":  a.doctor.name  if a.doctor  else "",
+        "date":         a.date,
+        "time":         a.time,
+        "appt_type":    a.appt_type,
+        "status":       a.status,
+        "notes":        a.notes or "",
+        "is_today":     a.date == today,
+        "is_past":      a.date < today
+    } for a in appts])
+
+
+@app.route("/book_appointment", methods=["POST"])
+@login_required
+def book_appointment():
+    denied = role_required("admin")
+    if denied:
+        return denied
+
+    from datetime import date as _date, datetime as _dt
+    data       = request.get_json(silent=True) or {}
+    patient_id = data.get("patient_id")
+    doctor_id  = data.get("doctor_id")
+    date_str   = str(data.get("date", "")).strip()
+    time_str   = str(data.get("time", "")).strip()
+    appt_type  = str(data.get("appt_type", "OPD")).strip()
+    notes      = str(data.get("notes", "")).strip() or None
+
+    if not patient_id:
+        return jsonify({"error": "Please select a patient"}), 400
+    if not doctor_id:
+        return jsonify({"error": "Please select a doctor"}), 400
+    if not date_str:
+        return jsonify({"error": "Date is required"}), 400
+    if not time_str:
+        return jsonify({"error": "Time is required"}), 400
+
+    try:
+        appt_date = _date.fromisoformat(date_str)
+    except ValueError:
+        return jsonify({"error": "Invalid date format"}), 400
+
+    # Check for duplicate appointment at same time
+    existing = Appointment.query.filter_by(
+        doctor_id=int(doctor_id),
+        date=date_str,
+        time=time_str,
+        status="Scheduled"
+    ).first()
+    if existing:
+        return jsonify({"error": f"Doctor already has an appointment at {time_str} on {date_str}"}), 400
+
+    try:
+        a = Appointment(
+            patient_id = int(patient_id),
+            doctor_id  = int(doctor_id),
+            date       = date_str,
+            time       = time_str,
+            appt_type  = appt_type,
+            status     = "Scheduled",
+            notes      = notes,
+            created_at = str(_date.today())
+        )
+        db.session.add(a)
+        db.session.commit()
+        audit(f"BOOK_APPOINTMENT patient={patient_id} doctor={doctor_id} date={date_str} time={time_str}")
+        return jsonify({"msg": "Appointment booked successfully", "id": a.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to book: {str(e)}"}), 500
+
+
+@app.route("/update_appointment/<int:appt_id>", methods=["POST"])
+@login_required
+def update_appointment(appt_id):
+    denied = role_required("admin", "doctor")
+    if denied:
+        return denied
+
+    data   = request.get_json(silent=True) or {}
+    status = str(data.get("status", "")).strip()
+    notes  = str(data.get("notes", "")).strip() or None
+
+    allowed = ["Scheduled", "Completed", "Cancelled"]
+    if status and status not in allowed:
+        return jsonify({"error": f"Status must be one of: {', '.join(allowed)}"}), 400
+
+    a = Appointment.query.get_or_404(appt_id)
+
+    # Doctor can only update their own appointments
+    if current_user.role == "doctor":
+        doctor = Doctor.query.filter_by(user_id=int(current_user.id)).first()
+        if not doctor or a.doctor_id != doctor.id:
+            return jsonify({"error": "Access denied"}), 403
+
+    try:
+        if status:
+            a.status = status
+        if notes is not None:
+            a.notes = notes
+        db.session.commit()
+        audit(f"UPDATE_APPOINTMENT id={appt_id} status={status}")
+        return jsonify({"msg": "Appointment updated"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed: {str(e)}"}), 500
+
+
+@app.route("/cancel_appointment/<int:appt_id>", methods=["DELETE"])
+@login_required
+def cancel_appointment(appt_id):
+    denied = role_required("admin")
+    if denied:
+        return denied
+
+    a = Appointment.query.get_or_404(appt_id)
+    try:
+        a.status = "Cancelled"
+        db.session.commit()
+        audit(f"CANCEL_APPOINTMENT id={appt_id}")
+        return jsonify({"msg": "Appointment cancelled"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed: {str(e)}"}), 500
+
+
+@app.route("/appointments/today")
+@login_required
+def appointments_today():
+    """Quick count of today's appointments — used by dashboard stats."""
+    from datetime import date as _date
+    today = str(_date.today())
+    role  = current_user.role
+
+    if role == "admin":
+        count = Appointment.query.filter_by(date=today, status="Scheduled").count()
+    elif role == "doctor":
+        doctor = Doctor.query.filter_by(user_id=int(current_user.id)).first()
+        count  = Appointment.query.filter_by(
+            doctor_id=doctor.id if doctor else -1,
+            date=today, status="Scheduled"
+        ).count()
+    else:
+        count = 0
+
+    return jsonify({"count": count, "date": today})
 
 
 # ======================================================

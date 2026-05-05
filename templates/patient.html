@@ -91,10 +91,25 @@ async function load(){
     const noPres=document.getElementById('noPres');
     if(!data.pres||data.pres.length===0){noPres.style.display='block';}
     else{
-      data.pres.forEach((p,i)=>{
+      data.pres.slice().reverse().forEach((p,i)=>{
         const div=document.createElement('div');
-        div.className='hlist-item'; div.style.animationDelay=(i*0.06)+'s';
-        div.innerHTML=`<div><div style="font-weight:600;font-size:13px">${escHtml(p.medicine)}</div></div><span class="badge-info">Qty: ${p.quantity}</span>`;
+        div.className='hlist-item';
+        div.style.flexDirection='column';
+        div.style.alignItems='flex-start';
+        div.style.gap='5px';
+        div.style.animationDelay=(i*0.06)+'s';
+        div.innerHTML=`
+          <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
+            <strong style="font-size:14px">${escHtml(p.medicine)}</strong>
+            <span style="font-size:11px;color:#94a3b8">${escHtml(p.date||'')}</span>
+          </div>
+          <div style="font-size:12px;display:flex;flex-wrap:wrap;gap:5px">
+            ${p.dosage?`<span class="badge-info">${escHtml(p.dosage)}</span>`:''}
+            <span class="badge-info">Qty: ${p.quantity}</span>
+            ${p.frequency?`<span class="badge-done">${escHtml(p.frequency)}</span>`:''}
+            ${p.duration?`<span style="background:#f1f5f9;padding:2px 8px;border-radius:20px;font-size:11px">${escHtml(p.duration)}</span>`:''}
+          </div>
+          ${p.instructions?`<div style="font-size:12px;color:#64748b;font-style:italic">${escHtml(p.instructions)}</div>`:''}`;
         presList.appendChild(div);
       });
     }

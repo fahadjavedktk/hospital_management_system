@@ -1,0 +1,527 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title"><i class="bi bi-calendar2-check"></i> Appointments</div>
+<div id="banner" class="alert-banner"></div>
+
+{% if current_user.role == 'admin' %}
+
+<!-- ══════════════ ADMIN VIEW ══════════════ -->
+<div class="htab-nav">
+  <button class="htab-btn active" onclick="showTab('book',this)"><i class="bi bi-calendar-plus"></i> Book appointment</button>
+  <button class="htab-btn" onclick="showTab('today',this)"><i class="bi bi-calendar-day"></i> Today</button>
+  <button class="htab-btn" onclick="showTab('upcoming',this)"><i class="bi bi-calendar-week"></i> Upcoming</button>
+  <button class="htab-btn" onclick="showTab('all',this)"><i class="bi bi-calendar3"></i> All appointments</button>
+</div>
+
+<!-- BOOK TAB -->
+<div id="tab-book">
+  <div class="row g-3">
+    <div class="col-md-5">
+      <div class="hcard">
+        <div class="hcard-title"><i class="bi bi-calendar-plus"></i> Book new appointment</div>
+
+        <div class="mb-3">
+          <label class="form-label">Patient <span style="color:#dc2626">*</span></label>
+          <select id="apptPatient" class="form-select">
+            <option value="">-- Select patient --</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Doctor <span style="color:#dc2626">*</span></label>
+          <select id="apptDoctor" class="form-select">
+            <option value="">-- Select doctor --</option>
+          </select>
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-7">
+            <label class="form-label">Date <span style="color:#dc2626">*</span></label>
+            <input id="apptDate" class="form-control" type="date">
+          </div>
+          <div class="col-5">
+            <label class="form-label">Time <span style="color:#dc2626">*</span></label>
+            <input id="apptTime" class="form-control" type="time">
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Appointment type</label>
+          <select id="apptType" class="form-select">
+            <option value="OPD">OPD (Outpatient)</option>
+            <option value="Follow-up">Follow-up</option>
+            <option value="Emergency">Emergency</option>
+            <option value="Specialist">Specialist</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Notes <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+          <input id="apptNotes" class="form-control" placeholder="e.g. Fasting required, bring previous reports" maxlength="500">
+        </div>
+
+        <button id="bookBtn" onclick="bookAppointment()" class="btn-primary-custom w-100">
+          <i class="bi bi-calendar-check"></i> Book appointment
+        </button>
+      </div>
+    </div>
+
+    <div class="col-md-7">
+      <div class="hcard">
+        <div class="hcard-title"><i class="bi bi-calendar-day"></i> Today's appointments</div>
+        <div id="todayQuick" class="loading-state"><div class="spinner"></div> Loading...</div>
+        <div id="todayQuickList"></div>
+        <div id="todayQuickEmpty" class="empty-state" style="display:none"><i class="bi bi-calendar2-x"></i><p>No appointments today</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TODAY TAB -->
+<div id="tab-today" style="display:none">
+  <div class="hcard">
+    <div class="hcard-title" style="justify-content:space-between">
+      <span><i class="bi bi-calendar-day"></i> Today's appointments</span>
+      <button onclick="loadToday()" class="btn-secondary-custom"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+    </div>
+    <div id="todayLoading" class="loading-state"><div class="spinner"></div> Loading...</div>
+    <div id="todayList"></div>
+    <div id="todayEmpty" class="empty-state" style="display:none"><i class="bi bi-calendar2-x"></i><p>No appointments today</p></div>
+  </div>
+</div>
+
+<!-- UPCOMING TAB -->
+<div id="tab-upcoming" style="display:none">
+  <div class="hcard">
+    <div class="hcard-title"><i class="bi bi-calendar-week"></i> Upcoming appointments</div>
+    <div id="upcomingLoading" class="loading-state"><div class="spinner"></div> Loading...</div>
+    <div id="upcomingList"></div>
+    <div id="upcomingEmpty" class="empty-state" style="display:none"><i class="bi bi-calendar2-x"></i><p>No upcoming appointments</p></div>
+  </div>
+</div>
+
+<!-- ALL TAB -->
+<div id="tab-all" style="display:none">
+  <div class="hcard">
+    <div class="hcard-title" style="justify-content:space-between">
+      <span><i class="bi bi-calendar3"></i> All appointments</span>
+      <input id="apptSearch" class="form-control" placeholder="Search patient or doctor..." style="width:200px;font-size:13px;border-radius:8px;padding:5px 10px" oninput="filterAll()">
+    </div>
+    <div id="allLoading" class="loading-state"><div class="spinner"></div> Loading...</div>
+    <div id="allList"></div>
+    <div id="allEmpty" class="empty-state" style="display:none"><i class="bi bi-calendar2-x"></i><p>No appointments found</p></div>
+  </div>
+</div>
+
+{% elif current_user.role == 'doctor' %}
+
+<!-- ══════════════ DOCTOR VIEW ══════════════ -->
+<div class="htab-nav">
+  <button class="htab-btn active" onclick="showTab('drToday',this)"><i class="bi bi-calendar-day"></i> Today's schedule</button>
+  <button class="htab-btn" onclick="showTab('drUpcoming',this)"><i class="bi bi-calendar-week"></i> Upcoming</button>
+  <button class="htab-btn" onclick="showTab('drPast',this)"><i class="bi bi-clock-history"></i> Past</button>
+</div>
+
+<div id="tab-drToday">
+  <div class="hcard">
+    <div class="hcard-title" style="justify-content:space-between">
+      <span><i class="bi bi-calendar-day"></i> Today's schedule</span>
+      <button onclick="loadDrAppointments()" class="btn-secondary-custom"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+    </div>
+    <div id="drTodayLoading" class="loading-state"><div class="spinner"></div> Loading...</div>
+    <div id="drTodayList"></div>
+    <div id="drTodayEmpty" class="empty-state" style="display:none"><i class="bi bi-calendar2-x"></i><p>No appointments today</p></div>
+  </div>
+</div>
+
+<div id="tab-drUpcoming" style="display:none">
+  <div class="hcard">
+    <div class="hcard-title"><i class="bi bi-calendar-week"></i> Upcoming appointments</div>
+    <div id="drUpcomingLoading" class="loading-state"><div class="spinner"></div> Loading...</div>
+    <div id="drUpcomingList"></div>
+    <div id="drUpcomingEmpty" class="empty-state" style="display:none"><i class="bi bi-calendar2-x"></i><p>No upcoming appointments</p></div>
+  </div>
+</div>
+
+<div id="tab-drPast" style="display:none">
+  <div class="hcard">
+    <div class="hcard-title"><i class="bi bi-clock-history"></i> Past appointments</div>
+    <div id="drPastLoading" class="loading-state"><div class="spinner"></div> Loading...</div>
+    <div id="drPastList"></div>
+    <div id="drPastEmpty" class="empty-state" style="display:none"><i class="bi bi-calendar2-x"></i><p>No past appointments</p></div>
+  </div>
+</div>
+
+{% elif current_user.role == 'patient' %}
+
+<!-- ══════════════ PATIENT VIEW ══════════════ -->
+<div class="hcard">
+  <div class="hcard-title"><i class="bi bi-calendar2-check"></i> My appointments</div>
+  <div id="ptApptLoading" class="loading-state"><div class="spinner"></div> Loading...</div>
+  <div id="ptApptList"></div>
+  <div id="ptApptEmpty" class="empty-state" style="display:none"><i class="bi bi-calendar2-x"></i><p>No appointments booked yet</p></div>
+</div>
+
+{% endif %}
+
+<!-- Update status modal -->
+<div id="statusOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:2000;align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+  <div style="background:#fff;border-radius:20px;padding:2rem;width:440px;max-width:95vw;animation:popIn .3s cubic-bezier(.34,1.56,.64,1)">
+    <div style="font-size:16px;font-weight:700;margin-bottom:.25rem" id="statusModalTitle">Update appointment</div>
+    <div id="statusModalSub" style="font-size:13px;color:#64748b;margin-bottom:1.25rem"></div>
+    <input type="hidden" id="statusApptId">
+    <div class="mb-3">
+      <label class="form-label">Status</label>
+      <select id="statusSelect" class="form-select">
+        <option value="Scheduled">Scheduled</option>
+        <option value="Completed">Completed</option>
+        <option value="Cancelled">Cancelled</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Notes <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+      <textarea id="statusNotes" class="form-control" rows="3" placeholder="Doctor notes, outcome, follow-up instructions..." style="resize:vertical"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:1rem">
+      <button onclick="saveStatus()" class="btn-primary-custom" style="flex:1"><i class="bi bi-check2"></i> Save</button>
+      <button onclick="closeStatusModal()" class="btn-secondary-custom" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes popIn{from{opacity:0;transform:scale(.9) translateY(20px)}to{opacity:1;transform:none}}
+.appt-card{background:#fff;border:1px solid #e8edf5;border-radius:12px;padding:1rem 1.25rem;margin-bottom:.5rem;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;transition:all .15s;animation:slideUp .25s ease both}
+.appt-card:hover{border-color:#dbeafe;transform:translateX(2px)}
+.appt-card.today{border-left:3px solid #2563eb}
+.appt-card.past{opacity:.75}
+.status-scheduled{background:#dbeafe;color:#1d4ed8;font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600}
+.status-completed{background:#dcfce7;color:#15803d;font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600}
+.status-cancelled{background:#fee2e2;color:#dc2626;font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600}
+.type-chip{background:#f1f5f9;color:#475569;font-size:11px;padding:2px 8px;border-radius:20px}
+</style>
+
+<script>
+let allAppts=[];
+function escHtml(s){const d=document.createElement('div');d.appendChild(document.createTextNode(String(s)));return d.innerHTML;}
+function today(){return new Date().toISOString().slice(0,10);}
+
+function showBanner(msg,type){
+  const b=document.getElementById('banner');
+  b.className='alert-banner alert-'+type;
+  b.textContent=msg; b.style.display='block';
+  b.style.animation='none'; b.offsetHeight; b.style.animation='slideDown .25s ease';
+  if(type==='success') setTimeout(()=>b.style.display='none',4000);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function showTab(name,btn){
+  const tabs=['book','today','upcoming','all','drToday','drUpcoming','drPast'];
+  tabs.forEach(t=>{const el=document.getElementById('tab-'+t);if(el)el.style.display='none';});
+  document.getElementById('tab-'+name).style.display='block';
+  document.querySelectorAll('.htab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(name==='today')      loadToday();
+  if(name==='upcoming')   loadUpcoming();
+  if(name==='all')        loadAll();
+  if(name==='drUpcoming') loadDrUpcoming();
+  if(name==='drPast')     loadDrPast();
+}
+
+/* ── STATUS BADGE ── */
+function statusBadge(s){
+  const map={'Scheduled':'status-scheduled','Completed':'status-completed','Cancelled':'status-cancelled'};
+  return `<span class="${map[s]||'status-scheduled'}">${escHtml(s)}</span>`;
+}
+
+/* ── APPOINTMENT CARD ── */
+function apptCard(a, showActions=true, role='admin'){
+  const isToday=a.date===today();
+  const isPast=a.is_past&&a.status==='Scheduled';
+  let actions='';
+  if(showActions && a.status==='Scheduled'){
+    if(role==='admin'){
+      actions=`
+        <div style="display:flex;gap:6px;flex-shrink:0;margin-top:4px">
+          <button class="btn-secondary-custom" onclick="openStatusModal(${a.id},'${escHtml(a.patient_name)}','${escHtml(a.doctor_name)}','${a.status}','${escHtml(a.notes)}')" style="font-size:12px">Update</button>
+          <button class="btn-danger-custom" onclick="cancelAppt(${a.id})" style="font-size:12px">Cancel</button>
+        </div>`;
+    } else if(role==='doctor'){
+      actions=`
+        <div style="display:flex;gap:6px;flex-shrink:0;margin-top:4px">
+          <button class="btn-primary-custom" onclick="openStatusModal(${a.id},'${escHtml(a.patient_name)}','${escHtml(a.doctor_name)}','${a.status}','${escHtml(a.notes)}')" style="font-size:12px;padding:6px 14px">Mark done</button>
+        </div>`;
+    }
+  }
+  return `
+    <div class="appt-card ${isToday?'today':''} ${a.is_past?'past':''}">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-weight:700;font-size:15px">${escHtml(a.patient_name)}</span>
+          ${statusBadge(a.status)}
+          <span class="type-chip">${escHtml(a.appt_type)}</span>
+          ${isToday?'<span style="background:#eff6ff;color:#2563eb;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600">TODAY</span>':''}
+        </div>
+        <div style="font-size:13px;color:#475569">
+          <i class="bi bi-person-badge" style="margin-right:4px"></i>Dr. ${escHtml(a.doctor_name)}
+          &nbsp;&middot;&nbsp;
+          <i class="bi bi-calendar2" style="margin-right:4px"></i>${escHtml(a.date)}
+          &nbsp;&middot;&nbsp;
+          <i class="bi bi-clock" style="margin-right:4px"></i>${escHtml(a.time)}
+        </div>
+        ${a.notes?`<div style="font-size:12px;color:#64748b;margin-top:4px;font-style:italic">${escHtml(a.notes)}</div>`:''}
+      </div>
+      ${actions}
+    </div>`;
+}
+
+/* ── STATUS MODAL ── */
+function openStatusModal(id, patient, doctor, status, notes){
+  document.getElementById('statusApptId').value=id;
+  document.getElementById('statusModalTitle').textContent='Update appointment';
+  document.getElementById('statusModalSub').textContent=`${patient} — Dr. ${doctor}`;
+  document.getElementById('statusSelect').value=status;
+  document.getElementById('statusNotes').value=notes||'';
+  document.getElementById('statusOverlay').style.display='flex';
+}
+function closeStatusModal(){document.getElementById('statusOverlay').style.display='none';}
+
+async function saveStatus(){
+  const id=document.getElementById('statusApptId').value;
+  const status=document.getElementById('statusSelect').value;
+  const notes=document.getElementById('statusNotes').value.trim();
+  try{
+    const res=await fetch('/update_appointment/'+id,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status,notes})});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed.','danger');return;}
+    showBanner('Appointment updated.','success');
+    closeStatusModal();
+    loadAll(); loadToday(); loadUpcoming();
+    if(typeof loadDrAppointments==='function') loadDrAppointments();
+  }catch(e){showBanner('Network error.','danger');}
+}
+
+async function cancelAppt(id){
+  if(!confirm('Cancel this appointment?')) return;
+  try{
+    const res=await fetch('/cancel_appointment/'+id,{method:'DELETE'});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed.','danger');return;}
+    showBanner('Appointment cancelled.','success');
+    loadAll(); loadToday(); loadUpcoming(); loadTodayQuick();
+  }catch(e){showBanner('Network error.','danger');}
+}
+
+/* ══════════════════════════════════════════
+   ADMIN FUNCTIONS
+══════════════════════════════════════════ */
+{% if current_user.role == 'admin' %}
+
+async function loadDropdowns(){
+  try{
+    const [pr,dr]=await Promise.all([fetch('/patients'),fetch('/doctors')]);
+    const patients=await pr.json();
+    const doctors=await dr.json();
+    const pSel=document.getElementById('apptPatient');
+    patients.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=`${p.name} (Age: ${p.age||'?'})`;pSel.appendChild(o);});
+    const dSel=document.getElementById('apptDoctor');
+    doctors.forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=`Dr. ${d.name} — ${d.specialisation}`;dSel.appendChild(o);});
+  }catch(e){}
+}
+
+async function bookAppointment(){
+  const patient=document.getElementById('apptPatient').value;
+  const doctor=document.getElementById('apptDoctor').value;
+  const date=document.getElementById('apptDate').value;
+  const time=document.getElementById('apptTime').value;
+  const type=document.getElementById('apptType').value;
+  const notes=document.getElementById('apptNotes').value.trim();
+  const btn=document.getElementById('bookBtn');
+
+  if(!patient){showBanner('Please select a patient.','warning');return;}
+  if(!doctor){showBanner('Please select a doctor.','warning');return;}
+  if(!date){showBanner('Date is required.','warning');return;}
+  if(!time){showBanner('Time is required.','warning');return;}
+
+  btn.disabled=true;
+  btn.innerHTML='<div class="spinner" style="display:inline-block;border-color:rgba(255,255,255,.4);border-top-color:#fff;margin-right:6px"></div>Booking...';
+
+  try{
+    const res=await fetch('/book_appointment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient_id:Number(patient),doctor_id:Number(doctor),date,time,appt_type:type,notes})});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed to book.','danger');return;}
+    showBanner('Appointment booked successfully.','success');
+    ['apptPatient','apptDoctor','apptNotes'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('apptDate').value='';
+    document.getElementById('apptTime').value='';
+    document.getElementById('apptType').value='OPD';
+    loadTodayQuick(); loadToday(); loadUpcoming(); loadAll();
+  }catch(e){showBanner('Network error.','danger');}
+  finally{btn.disabled=false;btn.innerHTML='<i class="bi bi-calendar-check"></i> Book appointment';}
+}
+
+async function loadTodayQuick(){
+  const loadEl=document.getElementById('todayQuick');
+  const listEl=document.getElementById('todayQuickList');
+  const emptyEl=document.getElementById('todayQuickEmpty');
+  loadEl.style.display='block'; listEl.innerHTML='';
+  try{
+    const res=await fetch('/appointments');
+    loadEl.style.display='none';
+    const data=await res.json();
+    const todayAppts=data.filter(a=>a.date===today()&&a.status==='Scheduled');
+    if(todayAppts.length===0){emptyEl.style.display='block';return;}
+    emptyEl.style.display='none';
+    todayAppts.sort((a,b)=>a.time.localeCompare(b.time));
+    todayAppts.forEach(a=>listEl.insertAdjacentHTML('beforeend',apptCard(a,true,'admin')));
+  }catch(e){loadEl.textContent='Network error.';}
+}
+
+async function loadToday(){
+  const loadEl=document.getElementById('todayLoading');
+  const listEl=document.getElementById('todayList');
+  const emptyEl=document.getElementById('todayEmpty');
+  loadEl.style.display='block'; listEl.innerHTML='';
+  try{
+    const res=await fetch('/appointments');
+    loadEl.style.display='none';
+    const data=await res.json();
+    const todayAppts=data.filter(a=>a.date===today()).sort((a,b)=>a.time.localeCompare(b.time));
+    if(todayAppts.length===0){emptyEl.style.display='block';return;}
+    emptyEl.style.display='none';
+    todayAppts.forEach(a=>listEl.insertAdjacentHTML('beforeend',apptCard(a,true,'admin')));
+  }catch(e){loadEl.textContent='Network error.';}
+}
+
+async function loadUpcoming(){
+  const loadEl=document.getElementById('upcomingLoading');
+  const listEl=document.getElementById('upcomingList');
+  const emptyEl=document.getElementById('upcomingEmpty');
+  loadEl.style.display='block'; listEl.innerHTML='';
+  try{
+    const res=await fetch('/appointments');
+    loadEl.style.display='none';
+    const data=await res.json();
+    const up=data.filter(a=>a.date>today()&&a.status==='Scheduled').sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
+    if(up.length===0){emptyEl.style.display='block';return;}
+    emptyEl.style.display='none';
+    up.forEach(a=>listEl.insertAdjacentHTML('beforeend',apptCard(a,true,'admin')));
+  }catch(e){loadEl.textContent='Network error.';}
+}
+
+let allAppts=[];
+async function loadAll(){
+  const loadEl=document.getElementById('allLoading');
+  const listEl=document.getElementById('allList');
+  const emptyEl=document.getElementById('allEmpty');
+  loadEl.style.display='block'; listEl.innerHTML='';
+  try{
+    const res=await fetch('/appointments');
+    loadEl.style.display='none';
+    allAppts=await res.json();
+    filterAll();
+  }catch(e){loadEl.textContent='Network error.';}
+}
+
+function filterAll(){
+  const q=document.getElementById('apptSearch').value.toLowerCase();
+  const listEl=document.getElementById('allList');
+  const emptyEl=document.getElementById('allEmpty');
+  listEl.innerHTML='';
+  const filtered=q?allAppts.filter(a=>a.patient_name.toLowerCase().includes(q)||a.doctor_name.toLowerCase().includes(q)):allAppts;
+  if(filtered.length===0){emptyEl.style.display='block';return;}
+  emptyEl.style.display='none';
+  filtered.forEach(a=>listEl.insertAdjacentHTML('beforeend',apptCard(a,true,'admin')));
+}
+
+// Set default date to today
+document.getElementById('apptDate').value=today();
+loadDropdowns();
+loadTodayQuick();
+
+{% endif %}
+
+/* ══════════════════════════════════════════
+   DOCTOR FUNCTIONS
+══════════════════════════════════════════ */
+{% if current_user.role == 'doctor' %}
+
+async function loadDrAppointments(){
+  const loadEl=document.getElementById('drTodayLoading');
+  const listEl=document.getElementById('drTodayList');
+  const emptyEl=document.getElementById('drTodayEmpty');
+  loadEl.style.display='block'; listEl.innerHTML='';
+  try{
+    const res=await fetch('/appointments');
+    loadEl.style.display='none';
+    const data=await res.json();
+    const todayAppts=data.filter(a=>a.date===today()).sort((a,b)=>a.time.localeCompare(b.time));
+    if(todayAppts.length===0){emptyEl.style.display='block';return;}
+    emptyEl.style.display='none';
+    todayAppts.forEach(a=>listEl.insertAdjacentHTML('beforeend',apptCard(a,true,'doctor')));
+  }catch(e){loadEl.textContent='Network error.';}
+}
+
+async function loadDrUpcoming(){
+  const loadEl=document.getElementById('drUpcomingLoading');
+  const listEl=document.getElementById('drUpcomingList');
+  const emptyEl=document.getElementById('drUpcomingEmpty');
+  loadEl.style.display='block'; listEl.innerHTML='';
+  try{
+    const res=await fetch('/appointments');
+    loadEl.style.display='none';
+    const data=await res.json();
+    const up=data.filter(a=>a.date>today()&&a.status==='Scheduled').sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
+    if(up.length===0){emptyEl.style.display='block';return;}
+    emptyEl.style.display='none';
+    up.forEach(a=>listEl.insertAdjacentHTML('beforeend',apptCard(a,false,'doctor')));
+  }catch(e){loadEl.textContent='Network error.';}
+}
+
+async function loadDrPast(){
+  const loadEl=document.getElementById('drPastLoading');
+  const listEl=document.getElementById('drPastList');
+  const emptyEl=document.getElementById('drPastEmpty');
+  loadEl.style.display='block'; listEl.innerHTML='';
+  try{
+    const res=await fetch('/appointments');
+    loadEl.style.display='none';
+    const data=await res.json();
+    const past=data.filter(a=>a.date<today()||a.status!=='Scheduled').sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time));
+    if(past.length===0){emptyEl.style.display='block';return;}
+    emptyEl.style.display='none';
+    past.forEach(a=>listEl.insertAdjacentHTML('beforeend',apptCard(a,false,'doctor')));
+  }catch(e){loadEl.textContent='Network error.';}
+}
+
+loadDrAppointments();
+
+{% endif %}
+
+/* ══════════════════════════════════════════
+   PATIENT FUNCTIONS
+══════════════════════════════════════════ */
+{% if current_user.role == 'patient' %}
+
+async function loadPatientAppts(){
+  const loadEl=document.getElementById('ptApptLoading');
+  const listEl=document.getElementById('ptApptList');
+  const emptyEl=document.getElementById('ptApptEmpty');
+  loadEl.style.display='block'; listEl.innerHTML='';
+  try{
+    const res=await fetch('/appointments');
+    loadEl.style.display='none';
+    const data=await res.json();
+    if(data.length===0){emptyEl.style.display='block';return;}
+    emptyEl.style.display='none';
+    data.sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time));
+    data.forEach(a=>listEl.insertAdjacentHTML('beforeend',apptCard(a,false,'patient')));
+  }catch(e){loadEl.textContent='Network error.';}
+}
+
+loadPatientAppts();
+
+{% endif %}
+</script>
+{% endblock %}

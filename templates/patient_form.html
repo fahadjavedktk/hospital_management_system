@@ -5,55 +5,106 @@
 <div id="banner" class="alert-banner"></div>
 
 <div class="row g-3">
+
+  <!-- LEFT: Prescription form -->
   <div class="col-md-7">
     <div class="hcard">
       <div class="hcard-title"><i class="bi bi-person-circle"></i> Patient info</div>
+
+      <!-- Patient summary -->
       <div style="display:flex;align-items:center;gap:14px;padding:1rem;background:#f8faff;border-radius:12px;margin-bottom:1.5rem">
-        <div style="width:52px;height:52px;border-radius:14px;background:#eff6ff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#2563eb;flex-shrink:0">{{ patient.name[0].upper() }}</div>
+        <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#2563eb,#60a5fa);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;flex-shrink:0">{{ patient.name[0].upper() }}</div>
         <div>
           <div style="font-size:17px;font-weight:700;color:#0f172a">{{ patient.name | e }}</div>
-          <div style="font-size:13px;color:#64748b">Dr. {{ patient.doctor.name | e }}</div>
+          <div style="font-size:13px;color:#64748b">
+            Dr. {{ patient.doctor.name | e }}
+            {% if patient.age %} &middot; Age: {{ patient.age }} {% endif %}
+            {% if patient.blood_group %} &middot; Blood: {{ patient.blood_group | e }} {% endif %}
+            {% if patient.allergies %} &middot; <span style="color:#dc2626;font-weight:500">Allergies: {{ patient.allergies | e }}</span>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Medicine selection -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:.75rem">Medicine</div>
+
+      <div class="mb-3">
+        <label class="form-label">Select from inventory</label>
+        <select id="medicine" class="form-select">
+          <option value="">-- Select medicine --</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Or type manually <span style="color:#94a3b8;font-weight:400">(if not in inventory)</span></label>
+        <input id="medicineCustom" class="form-control" placeholder="Type medicine name" maxlength="100" autocomplete="off">
+        <div id="stockInfo" style="font-size:12px;color:#64748b;margin-top:4px"></div>
+      </div>
+
+      <div class="row g-2 mb-3">
+        <div class="col-4">
+          <label class="form-label">Dosage <span style="color:#94a3b8;font-weight:400">(e.g. 500mg)</span></label>
+          <input id="dosage" class="form-control" placeholder="e.g. 500mg, 10ml" maxlength="50">
+        </div>
+        <div class="col-4">
+          <label class="form-label">Quantity <span style="color:#dc2626">*</span></label>
+          <input id="qty" class="form-control" type="number" min="1" max="999" placeholder="e.g. 14">
+        </div>
+        <div class="col-4">
+          <label class="form-label">Duration</label>
+          <input id="duration" class="form-control" placeholder="e.g. 7 days" maxlength="50">
         </div>
       </div>
 
       <div class="mb-3">
-        <label class="form-label">Medicine <span style="color:#94a3b8;font-weight:400">(select from inventory or type)</span></label>
-        <select id="medicine" class="form-select mb-2">
-          <option value="">-- Select from pharmacy inventory --</option>
+        <label class="form-label">Frequency</label>
+        <select id="frequency" class="form-select">
+          <option value="">-- Select or leave blank --</option>
+          <option>Once daily</option>
+          <option>Twice daily</option>
+          <option>Three times daily</option>
+          <option>Four times daily</option>
+          <option>Every 8 hours</option>
+          <option>Every 12 hours</option>
+          <option>Once weekly</option>
+          <option>As needed (SOS)</option>
+          <option>At bedtime</option>
+          <option>Before meals</option>
+          <option>After meals</option>
         </select>
-        <input id="medicineCustom" class="form-control" placeholder="Or type medicine name manually" maxlength="100" autocomplete="off">
       </div>
 
       <div class="mb-3">
-        <label class="form-label">Quantity</label>
-        <input id="qty" class="form-control" type="number" min="1" max="999" placeholder="e.g. 10">
-        <div id="stockInfo" style="font-size:12px;color:#64748b;margin-top:4px"></div>
+        <label class="form-label">Instructions <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+        <input id="instructions" class="form-control" placeholder="e.g. Take after meals with water, avoid sunlight" maxlength="300">
       </div>
 
+      <!-- Lab test -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin:.75rem 0">Lab test</div>
+
       <div class="mb-3">
-        <label class="form-label">Lab test <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+        <label class="form-label">Order lab test <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
         <select id="test" class="form-select">
           <option value="">-- No test required --</option>
-          {% for t in tests %}
-          <option value="{{ t | e }}">{{ t | e }}</option>
-          {% endfor %}
         </select>
       </div>
 
       <button id="submitBtn" data-pid="{{ patient.id | int }}" onclick="submitForm(this)" class="btn-primary-custom w-100 mt-2">
-        <i class="bi bi-check2-circle"></i> Submit prescription
+        <i class="bi bi-check2-circle"></i> Save prescription
       </button>
     </div>
   </div>
 
+  <!-- RIGHT: Prescription history -->
   <div class="col-md-5">
-    <div class="hcard">
-      <div class="hcard-title"><i class="bi bi-clock-history"></i> Previous prescriptions</div>
-      <div id="prevLoading" class="loading-state"><div class="spinner"></div> Loading...</div>
-      <div id="prevList"></div>
-      <div id="prevEmpty" class="empty-state" style="display:none"><i class="bi bi-prescription"></i><p>No prescriptions yet</p></div>
+    <div class="hcard h-100">
+      <div class="hcard-title"><i class="bi bi-clock-history"></i> Prescription history</div>
+      <div id="histLoading" class="loading-state"><div class="spinner"></div> Loading...</div>
+      <div id="histList"></div>
+      <div id="histEmpty" class="empty-state" style="display:none"><i class="bi bi-prescription2"></i><p>No previous prescriptions</p></div>
     </div>
   </div>
+
 </div>
 
 <script>
@@ -64,9 +115,38 @@ function showBanner(msg,type){
   b.style.animation='none'; b.offsetHeight; b.style.animation='slideDown .25s ease';
   window.scrollTo({top:0,behavior:'smooth'});
 }
-
 function escHtml(s){const d=document.createElement('div');d.appendChild(document.createTextNode(String(s)));return d.innerHTML;}
 
+/* ── Load lab test options from database ── */
+async function loadLabTestOptions(){
+  try{
+    const res=await fetch('/lab_tests');
+    if(!res.ok) return;
+    const data=await res.json();
+    const sel=document.getElementById('test');
+
+    // Group by category
+    const groups={};
+    data.forEach(t=>{
+      const cat=t.category||'Other';
+      if(!groups[cat]) groups[cat]=[];
+      groups[cat].push(t);
+    });
+
+    Object.keys(groups).sort().forEach(cat=>{
+      const grp=document.createElement('optgroup');
+      grp.label=cat;
+      groups[cat].forEach(t=>{
+        const o=document.createElement('option');
+        o.value=t.name; o.textContent=t.name;
+        grp.appendChild(o);
+      });
+      sel.appendChild(grp);
+    });
+  }catch(e){}
+}
+
+/* ── Load medicine inventory dropdown ── */
 async function loadMeds(){
   try{
     const res=await fetch('/meds');
@@ -92,49 +172,98 @@ document.getElementById('medicine').addEventListener('change',function(){
   } else { info.textContent=''; }
 });
 
-async function loadPrev(){
+/* ── Load prescription history ── */
+async function loadHistory(){
   const pid={{ patient.id | int }};
+  const loadEl=document.getElementById('histLoading');
+  const listEl=document.getElementById('histList');
+  const emptyEl=document.getElementById('histEmpty');
   try{
-    const res=await fetch('/my_patient_records/'+pid);
-    document.getElementById('prevLoading').style.display='none';
-    if(!res.ok){document.getElementById('prevEmpty').style.display='block';return;}
+    const res=await fetch('/patient_prescriptions/'+pid);
+    loadEl.style.display='none';
+    if(!res.ok){emptyEl.style.display='block';return;}
     const data=await res.json();
-    if(!data.pres||data.pres.length===0){document.getElementById('prevEmpty').style.display='block';return;}
-    const listEl=document.getElementById('prevList');
-    data.pres.forEach(p=>{
+    if(data.length===0){emptyEl.style.display='block';return;}
+    data.slice().reverse().forEach((rx,i)=>{
       const div=document.createElement('div');
       div.className='hlist-item';
-      div.innerHTML=`<span style="font-size:14px">${escHtml(p.medicine)}</span><span class="badge-info">Qty: ${p.quantity}</span>`;
+      div.style.flexDirection='column';
+      div.style.alignItems='flex-start';
+      div.style.gap='6px';
+      div.style.animationDelay=(i*0.06)+'s';
+      div.innerHTML=`
+        <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
+          <strong style="font-size:14px">${escHtml(rx.medicine)}</strong>
+          <span style="font-size:11px;color:#94a3b8">${escHtml(rx.date)}</span>
+        </div>
+        <div style="font-size:12px;color:#475569;display:flex;flex-wrap:wrap;gap:6px">
+          ${rx.dosage?`<span class="badge-info">${escHtml(rx.dosage)}</span>`:''}
+          <span class="badge-info">Qty: ${rx.quantity}</span>
+          ${rx.frequency?`<span class="badge-done">${escHtml(rx.frequency)}</span>`:''}
+          ${rx.duration?`<span style="background:#f1f5f9;padding:2px 8px;border-radius:20px;font-size:11px">${escHtml(rx.duration)}</span>`:''}
+        </div>
+        ${rx.instructions?`<div style="font-size:12px;color:#64748b;font-style:italic">${escHtml(rx.instructions)}</div>`:''}`;
       listEl.appendChild(div);
     });
-  }catch(e){document.getElementById('prevLoading').style.display='none';document.getElementById('prevEmpty').style.display='block';}
+  }catch(e){
+    loadEl.style.display='none';
+    emptyEl.style.display='block';
+  }
 }
 
+/* ── Submit prescription ── */
 async function submitForm(btn){
   const selectedMed=document.getElementById('medicine').value.trim();
   const customMed=document.getElementById('medicineCustom').value.trim();
   const medicine=selectedMed||customMed;
+  const dosage=document.getElementById('dosage').value.trim();
   const qty=document.getElementById('qty').value;
+  const frequency=document.getElementById('frequency').value;
+  const duration=document.getElementById('duration').value.trim();
+  const instructions=document.getElementById('instructions').value.trim();
   const test=document.getElementById('test').value;
   const pid=btn.dataset.pid;
 
-  if(!medicine){showBanner('Please select a medicine or type one manually.','warning');return;}
+  if(!medicine){showBanner('Please select or type a medicine name.','warning');return;}
   if(!qty||Number(qty)<1){showBanner('Enter a valid quantity (minimum 1).','warning');return;}
 
   btn.disabled=true;
   btn.innerHTML='<div class="spinner" style="display:inline-block;border-color:rgba(255,255,255,.4);border-top-color:#fff;margin-right:6px"></div>Saving...';
 
   try{
-    const res=await fetch('/prescribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient_id:Number(pid),medicine,qty:Number(qty),test})});
+    const res=await fetch('/prescribe',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        patient_id:Number(pid),
+        medicine,dosage,qty:Number(qty),
+        frequency,duration,instructions,test
+      })
+    });
     const data=await res.json();
-    if(!res.ok){showBanner(data.error||'Failed to save. Please try again.','danger');return;}
+    if(!res.ok){showBanner(data.error||'Failed to save.','danger');return;}
     showBanner('Prescription saved successfully.','success');
-    setTimeout(()=>window.location='/dashboard',1500);
+    // Clear medicine fields
+    document.getElementById('medicine').value='';
+    document.getElementById('medicineCustom').value='';
+    document.getElementById('dosage').value='';
+    document.getElementById('qty').value='';
+    document.getElementById('frequency').value='';
+    document.getElementById('duration').value='';
+    document.getElementById('instructions').value='';
+    document.getElementById('test').value='';
+    document.getElementById('stockInfo').textContent='';
+    // Reload history
+    document.getElementById('histList').innerHTML='';
+    document.getElementById('histEmpty').style.display='none';
+    document.getElementById('histLoading').style.display='block';
+    loadHistory();
   }catch(e){showBanner('Network error. Check your connection.','danger');}
-  finally{btn.disabled=false;btn.innerHTML='<i class="bi bi-check2-circle"></i> Submit prescription';}
+  finally{btn.disabled=false;btn.innerHTML='<i class="bi bi-check2-circle"></i> Save prescription';}
 }
 
 loadMeds();
-loadPrev();
+loadHistory();
+loadLabTestOptions();
 </script>
 {% endblock %}

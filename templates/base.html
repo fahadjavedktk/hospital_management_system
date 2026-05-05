@@ -261,14 +261,17 @@
 <aside class="sidebar">
   {% if current_user.role == 'admin' %}
     <div class="sidebar-section">Management</div>
-    <a href="/dashboard" class="sidebar-link active"><i class="bi bi-speedometer2"></i> Dashboard</a>
+    <a href="/dashboard" class="sidebar-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+    <a href="/appointments_page" class="sidebar-link"><i class="bi bi-calendar2-check"></i> Appointments</a>
     <div class="sidebar-section">Data</div>
     <a href="/dashboard" class="sidebar-link"><i class="bi bi-people"></i> Patients</a>
     <a href="/dashboard" class="sidebar-link"><i class="bi bi-person-badge"></i> Doctors</a>
     <a href="/dashboard" class="sidebar-link"><i class="bi bi-person-gear"></i> Staff</a>
+    <a href="/dashboard" class="sidebar-link"><i class="bi bi-eyedropper"></i> Lab Tests</a>
   {% elif current_user.role == 'doctor' %}
     <div class="sidebar-section">Clinical</div>
-    <a href="/dashboard" class="sidebar-link active"><i class="bi bi-clipboard2-pulse"></i> My Patients</a>
+    <a href="/dashboard" class="sidebar-link"><i class="bi bi-clipboard2-pulse"></i> My Patients</a>
+    <a href="/appointments_page" class="sidebar-link"><i class="bi bi-calendar2-check"></i> My Schedule</a>
   {% elif current_user.role == 'lab' %}
     <div class="sidebar-section">Laboratory</div>
     <a href="/dashboard" class="sidebar-link active"><i class="bi bi-eyedropper"></i> Lab Requests</a>
@@ -277,7 +280,8 @@
     <a href="/dashboard" class="sidebar-link active"><i class="bi bi-capsule"></i> Inventory</a>
   {% elif current_user.role == 'patient' %}
     <div class="sidebar-section">My Health</div>
-    <a href="/dashboard" class="sidebar-link active"><i class="bi bi-heart-pulse"></i> My Records</a>
+    <a href="/dashboard" class="sidebar-link"><i class="bi bi-heart-pulse"></i> My Records</a>
+    <a href="/appointments_page" class="sidebar-link"><i class="bi bi-calendar2-check"></i> My Appointments</a>
   {% endif %}
 </aside>
 {% endif %}

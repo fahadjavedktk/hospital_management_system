@@ -4,80 +4,170 @@
 <div class="page-title"><i class="bi bi-shield-check"></i> Admin Panel</div>
 <div id="banner" class="alert-banner"></div>
 
-<div class="htab-nav" id="tabNav">
+<div class="htab-nav">
   <button class="htab-btn active" onclick="showTab('patients',this)"><i class="bi bi-people"></i> Patients</button>
   <button class="htab-btn" onclick="showTab('doctors',this)"><i class="bi bi-person-badge"></i> Doctors</button>
   <button class="htab-btn" onclick="showTab('staff',this)"><i class="bi bi-person-gear"></i> Staff accounts</button>
+  <button class="htab-btn" onclick="showTab('labtests',this)"><i class="bi bi-eyedropper"></i> Lab tests</button>
 </div>
 
-<!-- ══════════ PATIENTS ══════════ -->
+<!-- ══════════════════════════════════════════════════════
+     PATIENTS TAB
+════════════════════════════════════════════════════════ -->
 <div id="tab-patients">
   <div class="row g-3">
+
+    <!-- ADD PATIENT FORM -->
     <div class="col-md-5">
       <div class="hcard">
-        <div class="hcard-title"><i class="bi bi-person-plus"></i> Add patient</div>
+        <div class="hcard-title"><i class="bi bi-person-plus"></i> Register patient</div>
+
+        <!-- Section: Personal -->
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:.75rem">Personal information</div>
+
         <div class="mb-3">
-          <label class="form-label">Full name</label>
+          <label class="form-label">Full name <span style="color:#dc2626">*</span></label>
           <input id="ptName" class="form-control" placeholder="Patient full name" maxlength="100">
         </div>
-        <div class="mb-3">
-          <label class="form-label">Age</label>
-          <input id="ptAge" class="form-control" type="number" min="0" max="150" placeholder="Age">
+
+        <div class="row g-2 mb-3">
+          <div class="col-7">
+            <label class="form-label">Date of birth <span style="color:#dc2626">*</span></label>
+            <input id="ptDob" class="form-control" type="date">
+            <div id="ptAgeDisplay" style="font-size:12px;color:#64748b;margin-top:3px"></div>
+          </div>
+          <div class="col-5">
+            <label class="form-label">Gender</label>
+            <select id="ptGender" class="form-select">
+              <option value="">Select</option>
+              <option>Male</option>
+              <option>Female</option>
+              <option>Other</option>
+            </select>
+          </div>
         </div>
-        <div class="mb-3">
-          <label class="form-label">Assign doctor</label>
-          <select id="ptDoctor" class="form-select">
-            <option value="">-- Select a doctor --</option>
-          </select>
+
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label">Blood group</label>
+            <select id="ptBlood" class="form-select">
+              <option value="">Unknown</option>
+              <option>A+</option><option>A-</option>
+              <option>B+</option><option>B-</option>
+              <option>AB+</option><option>AB-</option>
+              <option>O+</option><option>O-</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label">Admission type</label>
+            <select id="ptAdmission" class="form-select">
+              <option value="OPD">OPD (Outpatient)</option>
+              <option value="IPD">IPD (Inpatient)</option>
+            </select>
+          </div>
         </div>
+
+        <div class="mb-3">
+          <label class="form-label">CNIC / National ID</label>
+          <input id="ptCnic" class="form-control" placeholder="e.g. 35202-1234567-1" maxlength="20">
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label">Phone number</label>
+            <input id="ptPhone" class="form-control" placeholder="e.g. 0300-1234567" maxlength="20">
+          </div>
+          <div class="col-6">
+            <label class="form-label">Assign doctor <span style="color:#dc2626">*</span></label>
+            <select id="ptDoctor" class="form-select">
+              <option value="">Select doctor</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Address</label>
+          <input id="ptAddress" class="form-control" placeholder="Street, City" maxlength="300">
+        </div>
+
+        <!-- Section: Emergency -->
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin:.75rem 0">Emergency contact</div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label">Contact name</label>
+            <input id="ptEmgName" class="form-control" placeholder="Full name" maxlength="100">
+          </div>
+          <div class="col-6">
+            <label class="form-label">Contact phone</label>
+            <input id="ptEmgPhone" class="form-control" placeholder="0300-0000000" maxlength="20">
+          </div>
+        </div>
+
+        <!-- Section: Medical -->
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin:.75rem 0">Medical information</div>
+
+        <div class="mb-3">
+          <label class="form-label">Known allergies</label>
+          <input id="ptAllergies" class="form-control" placeholder="e.g. Penicillin, Sulfa, None" maxlength="500">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Chronic conditions</label>
+          <input id="ptChronic" class="form-control" placeholder="e.g. Diabetes, Hypertension, None" maxlength="500">
+        </div>
+
         <button id="addPatientBtn" onclick="addPatient()" class="btn-primary-custom w-100 mt-2">
-          <i class="bi bi-plus-lg"></i> Add patient
+          <i class="bi bi-person-plus"></i> Register patient
         </button>
       </div>
     </div>
+
+    <!-- PATIENT LIST -->
     <div class="col-md-7">
       <div class="hcard">
-        <div class="hcard-title"><i class="bi bi-list-ul"></i> Patient list <span id="ptCount" class="badge-info ms-2" style="font-size:11px;padding:3px 10px;border-radius:20px"></span></div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div class="hcard-title mb-0"><i class="bi bi-list-ul"></i> Patient list <span id="ptCount" class="badge-info ms-2" style="font-size:11px;padding:3px 10px;border-radius:20px"></span></div>
+          <div style="display:flex;gap:6px">
+            <input id="ptSearch" class="form-control" placeholder="Search..." style="width:160px;font-size:13px;border-radius:8px;padding:5px 10px" oninput="filterPatients()">
+          </div>
+        </div>
         <div id="ptLoading" class="loading-state"><div class="spinner"></div> Loading...</div>
         <div id="ptList"></div>
-        <div id="ptEmpty" class="empty-state" style="display:none"><i class="bi bi-people"></i><p>No patients added yet</p></div>
+        <div id="ptEmpty" class="empty-state" style="display:none"><i class="bi bi-people"></i><p>No patients registered yet</p></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ══════════ DOCTORS ══════════ -->
+<!-- Patient detail modal -->
+<div id="ptDetailOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:2000;align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+  <div style="background:#fff;border-radius:20px;padding:2rem;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;animation:popIn .3s cubic-bezier(.34,1.56,.64,1)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+      <div style="font-size:17px;font-weight:700;color:#0f172a" id="detailName"></div>
+      <button onclick="closeDetail()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748b">&#10005;</button>
+    </div>
+    <div id="detailBody"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     DOCTORS TAB
+════════════════════════════════════════════════════════ -->
 <div id="tab-doctors" style="display:none">
   <div class="row g-3">
     <div class="col-md-5">
       <div class="hcard">
         <div class="hcard-title"><i class="bi bi-person-badge"></i> Add doctor</div>
-        <div class="mb-3">
-          <label class="form-label">Full name</label>
-          <input id="drName" class="form-control" placeholder="Full name (without Dr.)" maxlength="100">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Specialisation</label>
-          <input id="drSpec" class="form-control" placeholder="e.g. Cardiology, General" maxlength="100">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Phone <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
-          <input id="drPhone" class="form-control" placeholder="e.g. 0300-1234567" maxlength="20">
-        </div>
+        <div class="mb-3"><label class="form-label">Full name</label><input id="drName" class="form-control" placeholder="Full name (without Dr.)" maxlength="100"></div>
+        <div class="mb-3"><label class="form-label">Specialisation</label><input id="drSpec" class="form-control" placeholder="e.g. Cardiology, General" maxlength="100"></div>
+        <div class="mb-3"><label class="form-label">Phone <span style="color:#94a3b8;font-weight:400">(optional)</span></label><input id="drPhone" class="form-control" placeholder="e.g. 0300-1234567" maxlength="20"></div>
         <div style="border-top:1px solid #f1f5f9;padding-top:1rem;margin-top:.5rem">
           <div style="font-size:12px;color:#64748b;margin-bottom:.75rem;font-weight:500">Login account (optional)</div>
-          <div class="mb-3">
-            <label class="form-label">Username</label>
-            <input id="drUser" class="form-control" placeholder="e.g. dr_ahmed" maxlength="80" autocomplete="off">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Password</label>
-            <input id="drPass" class="form-control" type="password" placeholder="Min 8 characters" maxlength="200">
-          </div>
+          <div class="mb-3"><label class="form-label">Username</label><input id="drUser" class="form-control" placeholder="e.g. dr_ahmed" maxlength="80" autocomplete="off"></div>
+          <div class="mb-3"><label class="form-label">Password</label><input id="drPass" class="form-control" type="password" placeholder="Min 8 characters" maxlength="200"></div>
         </div>
-        <button id="addDoctorBtn" onclick="addDoctor()" class="btn-primary-custom w-100 mt-1">
-          <i class="bi bi-plus-lg"></i> Add doctor
-        </button>
+        <button id="addDoctorBtn" onclick="addDoctor()" class="btn-primary-custom w-100 mt-1"><i class="bi bi-plus-lg"></i> Add doctor</button>
       </div>
     </div>
     <div class="col-md-7">
@@ -91,21 +181,59 @@
   </div>
 </div>
 
-<!-- ══════════ STAFF ══════════ -->
+<!-- ══════════════════════════════════════════════════════
+     LAB TESTS TAB
+════════════════════════════════════════════════════════ -->
+<div id="tab-labtests" style="display:none">
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="hcard">
+        <div class="hcard-title"><i class="bi bi-plus-circle"></i> Add lab test</div>
+        <div class="mb-3">
+          <label class="form-label">Test name <span style="color:#dc2626">*</span></label>
+          <input id="ltName" class="form-control" placeholder="e.g. Urine Culture, ECG" maxlength="100">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Category <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+          <select id="ltCategory" class="form-select">
+            <option value="">-- Select category --</option>
+            <option>Radiology</option>
+            <option>Haematology</option>
+            <option>Biochemistry</option>
+            <option>Microbiology</option>
+            <option>Cardiology</option>
+            <option>Pathology</option>
+            <option>Serology</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <button id="addLtBtn" onclick="addLabTest()" class="btn-primary-custom w-100">
+          <i class="bi bi-plus-lg"></i> Add test
+        </button>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="hcard">
+        <div class="hcard-title"><i class="bi bi-list-check"></i> Available lab tests <span id="ltCount" class="badge-info ms-2" style="font-size:11px;padding:3px 10px;border-radius:20px"></span></div>
+        <div id="ltLoading" class="loading-state"><div class="spinner"></div> Loading...</div>
+        <div id="ltList"></div>
+        <div id="ltEmpty" class="empty-state" style="display:none"><i class="bi bi-eyedropper"></i><p>No lab tests added yet</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     STAFF TAB
+════════════════════════════════════════════════════════ -->
 <div id="tab-staff" style="display:none">
   <div class="row g-3">
     <div class="col-md-5">
       <div class="hcard">
         <div class="hcard-title"><i class="bi bi-person-plus-fill"></i> Create staff account</div>
         <div style="font-size:13px;color:#64748b;margin-bottom:1rem">Create login accounts for lab, pharmacy, or patient roles.</div>
-        <div class="mb-3">
-          <label class="form-label">Username</label>
-          <input id="sfUser" class="form-control" placeholder="e.g. lab_sara" maxlength="80" autocomplete="off">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Password</label>
-          <input id="sfPass" class="form-control" type="password" placeholder="Min 8 characters" maxlength="200">
-        </div>
+        <div class="mb-3"><label class="form-label">Username</label><input id="sfUser" class="form-control" placeholder="e.g. lab_sara" maxlength="80" autocomplete="off"></div>
+        <div class="mb-3"><label class="form-label">Password</label><input id="sfPass" class="form-control" type="password" placeholder="Min 8 characters" maxlength="200"></div>
         <div class="mb-3">
           <label class="form-label">Role</label>
           <select id="sfRole" class="form-select">
@@ -116,9 +244,7 @@
             <option value="patient">Patient</option>
           </select>
         </div>
-        <button id="addStaffBtn" onclick="addStaff()" class="btn-primary-custom w-100">
-          <i class="bi bi-plus-lg"></i> Create account
-        </button>
+        <button id="addStaffBtn" onclick="addStaff()" class="btn-primary-custom w-100"><i class="bi bi-plus-lg"></i> Create account</button>
       </div>
     </div>
     <div class="col-md-7">
@@ -132,7 +258,17 @@
   </div>
 </div>
 
+<style>
+@keyframes popIn{from{opacity:0;transform:scale(.9) translateY(20px)}to{opacity:1;transform:none}}
+.detail-row{display:flex;gap:8px;padding:8px 0;border-bottom:0.5px solid #f1f5f9;font-size:13px}
+.detail-row:last-child{border-bottom:none}
+.detail-label{color:#64748b;width:140px;flex-shrink:0;font-weight:500}
+.detail-val{color:#0f172a;flex:1}
+.section-sep{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;padding:.75rem 0 .35rem}
+</style>
+
 <script>
+let allPatients = [];
 function escHtml(s){const d=document.createElement('div');d.appendChild(document.createTextNode(String(s)));return d.innerHTML;}
 
 function showBanner(msg,type){
@@ -143,21 +279,31 @@ function showBanner(msg,type){
   if(type==='success') setTimeout(()=>b.style.display='none',4000);
   window.scrollTo({top:0,behavior:'smooth'});
 }
-
 function setBtn(id,loading,label){
   const b=document.getElementById(id);
   b.disabled=loading;
   b.innerHTML=loading?'<div class="spinner" style="display:inline-block;border-color:rgba(255,255,255,.4);border-top-color:#fff;margin-right:6px"></div>Saving...':'<i class="bi bi-plus-lg"></i> '+label;
 }
-
 function showTab(name,btn){
-  ['patients','doctors','staff'].forEach(t=>document.getElementById('tab-'+t).style.display=t===name?'block':'none');
+  ['patients','doctors','staff','labtests'].forEach(t=>document.getElementById('tab-'+t).style.display=t===name?'block':'none');
   document.querySelectorAll('.htab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   if(name==='patients'){loadDoctorDropdown();loadPatients();}
   if(name==='doctors') loadDoctors();
   if(name==='staff')   loadStaff();
+  if(name==='labtests') loadLabTests();
 }
+
+/* ── AGE CALCULATION ── */
+document.getElementById('ptDob').addEventListener('change',function(){
+  if(!this.value) return;
+  const dob=new Date(this.value);
+  const today=new Date();
+  let age=today.getFullYear()-dob.getFullYear();
+  const m=today.getMonth()-dob.getMonth();
+  if(m<0||(m===0&&today.getDate()<dob.getDate())) age--;
+  document.getElementById('ptAgeDisplay').textContent=age>=0?`Age: ${age} years`:'';
+});
 
 /* ── DOCTOR DROPDOWN ── */
 async function loadDoctorDropdown(){
@@ -166,12 +312,159 @@ async function loadDoctorDropdown(){
     if(!res.ok) return;
     const data=await res.json();
     const sel=document.getElementById('ptDoctor');
-    sel.innerHTML='<option value="">-- Select a doctor --</option>';
-    data.forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=`${escHtml(d.name)} — ${escHtml(d.specialisation)}`;sel.appendChild(o);});
+    sel.innerHTML='<option value="">Select doctor</option>';
+    data.forEach(d=>{
+      const o=document.createElement('option');
+      o.value=d.id;
+      o.textContent=`${escHtml(d.name)} — ${escHtml(d.specialisation)}`;
+      sel.appendChild(o);
+    });
   }catch(e){}
 }
 
-/* ── ADD DOCTOR ── */
+/* ── ADD PATIENT ── */
+async function addPatient(){
+  const name=document.getElementById('ptName').value.trim();
+  const dob=document.getElementById('ptDob').value;
+  const gender=document.getElementById('ptGender').value;
+  const blood=document.getElementById('ptBlood').value;
+  const admission=document.getElementById('ptAdmission').value;
+  const cnic=document.getElementById('ptCnic').value.trim();
+  const phone=document.getElementById('ptPhone').value.trim();
+  const doctorId=document.getElementById('ptDoctor').value;
+  const address=document.getElementById('ptAddress').value.trim();
+  const emgName=document.getElementById('ptEmgName').value.trim();
+  const emgPhone=document.getElementById('ptEmgPhone').value.trim();
+  const allergies=document.getElementById('ptAllergies').value.trim();
+  const chronic=document.getElementById('ptChronic').value.trim();
+
+  if(!name){showBanner('Patient full name is required.','warning');return;}
+  if(!dob){showBanner('Date of birth is required.','warning');return;}
+  if(!doctorId){showBanner('Please assign a doctor.','warning');return;}
+
+  setBtn('addPatientBtn',true,'Register patient');
+  try{
+    const res=await fetch('/add_patient',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        name,date_of_birth:dob,gender,blood_group:blood,
+        admission_type:admission,cnic,phone,address,
+        emergency_name:emgName,emergency_phone:emgPhone,
+        allergies,chronic_conditions:chronic,
+        doctor_id:Number(doctorId)
+      })
+    });
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed to register patient.','danger');return;}
+    showBanner('Patient registered successfully.','success');
+    // Clear form
+    ['ptName','ptDob','ptCnic','ptPhone','ptAddress','ptEmgName','ptEmgPhone','ptAllergies','ptChronic'].forEach(id=>document.getElementById(id).value='');
+    ['ptGender','ptBlood','ptDoctor'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('ptAdmission').value='OPD';
+    document.getElementById('ptAgeDisplay').textContent='';
+    loadPatients();
+  }catch(e){showBanner('Network error.','danger');}
+  finally{setBtn('addPatientBtn',false,'Register patient');}
+}
+
+/* ── PATIENT LIST + SEARCH ── */
+function filterPatients(){
+  const q=document.getElementById('ptSearch').value.toLowerCase();
+  renderPatients(q?allPatients.filter(p=>
+    p.name.toLowerCase().includes(q)||
+    (p.doctor||'').toLowerCase().includes(q)||
+    (p.cnic||'').includes(q)||
+    (p.phone||'').includes(q)
+  ):allPatients);
+}
+
+function renderPatients(data){
+  const listEl=document.getElementById('ptList');
+  const emptyEl=document.getElementById('ptEmpty');
+  const countEl=document.getElementById('ptCount');
+  listEl.innerHTML='';
+  countEl.textContent=allPatients.length+' patient'+(allPatients.length!==1?'s':'');
+  if(data.length===0){emptyEl.style.display='block';return;}
+  emptyEl.style.display='none';
+  const typeColors={'OPD':'badge-info','IPD':'badge-pending'};
+  data.forEach((p,i)=>{
+    const div=document.createElement('div');
+    div.className='hlist-item'; div.style.animationDelay=(i*0.04)+'s';
+    div.innerHTML=`
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+        <div style="width:38px;height:38px;border-radius:10px;background:#eff6ff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:#2563eb;flex-shrink:0">${escHtml(p.name[0].toUpperCase())}</div>
+        <div style="min-width:0">
+          <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(p.name)}</div>
+          <div style="font-size:12px;color:#64748b">${p.age?p.age+' yrs':''} ${p.gender?'· '+p.gender:''} ${p.blood_group?'· '+p.blood_group:''} · Dr. ${escHtml(p.doctor)}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <span class="${typeColors[p.admission_type]||'badge-info'}">${p.admission_type||'OPD'}</span>
+        <button class="btn-secondary-custom" onclick="viewPatient(${p.id})" style="font-size:12px">View</button>
+        <button class="btn-danger-custom" onclick="deletePatient(${p.id},'${escHtml(p.name)}')" style="font-size:12px">Delete</button>
+      </div>`;
+    listEl.appendChild(div);
+  });
+}
+
+async function loadPatients(){
+  const loadEl=document.getElementById('ptLoading');
+  loadEl.style.display='block';
+  document.getElementById('ptList').innerHTML='';
+  try{
+    const res=await fetch('/patients');
+    if(!res.ok){loadEl.textContent='Failed to load.';return;}
+    allPatients=await res.json();
+    loadEl.style.display='none';
+    filterPatients();
+  }catch(e){loadEl.textContent='Network error.';}
+}
+
+function viewPatient(id){
+  const p=allPatients.find(x=>x.id===id);
+  if(!p) return;
+  document.getElementById('detailName').textContent=p.name;
+  const rows=[
+    ['section','Personal Information'],
+    ['Date of birth', p.date_of_birth||'Not provided'],
+    ['Age',           p.age?p.age+' years':'Not provided'],
+    ['Gender',        p.gender||'Not provided'],
+    ['Blood group',   p.blood_group||'Not provided'],
+    ['CNIC',          p.cnic||'Not provided'],
+    ['Phone',         p.phone||'Not provided'],
+    ['Address',       p.address||'Not provided'],
+    ['section','Medical Information'],
+    ['Admission type',p.admission_type||'OPD'],
+    ['Admission date',p.admission_date||'Not provided'],
+    ['Status',        p.status||'Active'],
+    ['Allergies',     p.allergies||'None recorded'],
+    ['Chronic cond.', p.chronic_conditions||'None recorded'],
+    ['section','Emergency Contact'],
+    ['Contact name',  p.emergency_name||'Not provided'],
+    ['Contact phone', p.emergency_phone||'Not provided'],
+    ['section','Assigned Doctor'],
+    ['Doctor',        'Dr. '+p.doctor],
+  ];
+  document.getElementById('detailBody').innerHTML=rows.map(r=>{
+    if(r[0]==='section') return `<div class="section-sep">${r[1]}</div>`;
+    return `<div class="detail-row"><span class="detail-label">${r[0]}</span><span class="detail-val">${escHtml(String(r[1]))}</span></div>`;
+  }).join('');
+  document.getElementById('ptDetailOverlay').style.display='flex';
+}
+function closeDetail(){document.getElementById('ptDetailOverlay').style.display='none';}
+
+async function deletePatient(id,name){
+  if(!confirm(`Delete patient "${name}"? This cannot be undone.`)) return;
+  try{
+    const res=await fetch('/delete_patient/'+id,{method:'DELETE'});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed to delete.','danger');return;}
+    showBanner('Patient deleted.','success'); loadPatients();
+  }catch(e){showBanner('Network error.','danger');}
+}
+
+/* ── DOCTORS ── */
 async function addDoctor(){
   const name=document.getElementById('drName').value.trim();
   const spec=document.getElementById('drSpec').value.trim();
@@ -186,42 +479,36 @@ async function addDoctor(){
   try{
     const res=await fetch('/add_doctor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,specialisation:spec,phone,username:user,password:pass})});
     const data=await res.json();
-    if(!res.ok){showBanner(data.error||'Failed to add doctor.','danger');return;}
-    showBanner(`${name} added successfully.`,'success');
+    if(!res.ok){showBanner(data.error||'Failed.','danger');return;}
+    showBanner(`${name} added.`,'success');
     ['drName','drSpec','drPhone','drUser','drPass'].forEach(id=>document.getElementById(id).value='');
     loadDoctors(); loadDoctorDropdown();
   }catch(e){showBanner('Network error.','danger');}
   finally{setBtn('addDoctorBtn',false,'Add doctor');}
 }
-
 async function deleteDoctor(id,name){
-  if(!confirm(`Remove "${name}"? Cannot be done if patients are assigned.`)) return;
+  if(!confirm(`Remove "${name}"?`)) return;
   try{
     const res=await fetch('/delete_doctor/'+id,{method:'DELETE'});
     const data=await res.json();
-    if(!res.ok){showBanner(data.error||'Failed to remove.','danger');return;}
+    if(!res.ok){showBanner(data.error,'danger');return;}
     showBanner('Doctor removed.','success'); loadDoctors(); loadDoctorDropdown();
   }catch(e){showBanner('Network error.','danger');}
 }
-
 function openEditDoctor(id,name,spec){
-  const newName=prompt('Edit doctor name:',name);
-  if(newName===null) return;
-  const newSpec=prompt('Edit specialisation:',spec);
-  if(newSpec===null) return;
-  updateDoctor(id,newName.trim(),newSpec.trim());
+  const n=prompt('Edit name:',name); if(n===null) return;
+  const s=prompt('Edit specialisation:',spec); if(s===null) return;
+  updateDoctor(id,n.trim(),s.trim());
 }
-
 async function updateDoctor(id,name,spec){
   if(!name||!spec){showBanner('Name and specialisation required.','warning');return;}
   try{
     const res=await fetch('/update_doctor/'+id,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,specialisation:spec})});
     const data=await res.json();
-    if(!res.ok){showBanner(data.error||'Update failed.','danger');return;}
+    if(!res.ok){showBanner(data.error||'Failed.','danger');return;}
     showBanner('Doctor updated.','success'); loadDoctors(); loadDoctorDropdown();
   }catch(e){showBanner('Network error.','danger');}
 }
-
 async function loadDoctors(){
   const loadEl=document.getElementById('drLoading');
   const listEl=document.getElementById('drList');
@@ -230,7 +517,7 @@ async function loadDoctors(){
   loadEl.style.display='block'; listEl.innerHTML='';
   try{
     const res=await fetch('/doctors');
-    if(!res.ok){loadEl.textContent='Failed to load.';return;}
+    if(!res.ok){loadEl.textContent='Failed.';return;}
     const data=await res.json();
     loadEl.style.display='none';
     countEl.textContent=data.length+' doctor'+(data.length!==1?'s':'');
@@ -238,64 +525,13 @@ async function loadDoctors(){
     emptyEl.style.display='none';
     data.forEach((d,i)=>{
       const div=document.createElement('div');
-      div.className='hlist-item';
-      div.style.animationDelay=(i*0.05)+'s';
-      div.innerHTML=`<div><strong>${escHtml(d.name)}</strong> <span class="badge-info" style="margin-left:8px;font-size:11px;padding:2px 8px;border-radius:20px">${escHtml(d.specialisation)}</span>${d.phone?`<span style="color:#94a3b8;font-size:12px;margin-left:8px">${escHtml(d.phone)}</span>`:''}</div><div style="display:flex;gap:6px"><button class="btn-secondary-custom" onclick="openEditDoctor(${d.id},'${escHtml(d.name)}','${escHtml(d.specialisation)}')">Edit</button><button class="btn-danger-custom" onclick="deleteDoctor(${d.id},'${escHtml(d.name)}')">Remove</button></div>`;
-      listEl.appendChild(div);
-    });
-  }catch(e){loadEl.textContent='Network error.';}
-}
-
-/* ── ADD PATIENT ── */
-async function addPatient(){
-  const name=document.getElementById('ptName').value.trim();
-  const age=document.getElementById('ptAge').value;
-  const doctorId=document.getElementById('ptDoctor').value;
-  if(!name){showBanner('Patient name is required.','warning');return;}
-  if(!age||Number(age)<0||Number(age)>150){showBanner('Enter a valid age (0-150).','warning');return;}
-  if(!doctorId){showBanner('Please select a doctor.','warning');return;}
-  setBtn('addPatientBtn',true,'Add patient');
-  try{
-    const res=await fetch('/add_patient',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,age:Number(age),doctor_id:Number(doctorId)})});
-    const data=await res.json();
-    if(!res.ok){showBanner(data.error||'Failed to add patient.','danger');return;}
-    showBanner('Patient added successfully.','success');
-    ['ptName','ptAge'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('ptDoctor').value='';
-    loadPatients();
-  }catch(e){showBanner('Network error.','danger');}
-  finally{setBtn('addPatientBtn',false,'Add patient');}
-}
-
-async function deletePatient(id,name){
-  if(!confirm(`Delete patient "${name}"? This cannot be undone.`)) return;
-  try{
-    const res=await fetch('/delete_patient/'+id,{method:'DELETE'});
-    const data=await res.json();
-    if(!res.ok){showBanner(data.error||'Failed to delete.','danger');return;}
-    showBanner('Patient deleted.','success'); loadPatients();
-  }catch(e){showBanner('Network error.','danger');}
-}
-
-async function loadPatients(){
-  const loadEl=document.getElementById('ptLoading');
-  const listEl=document.getElementById('ptList');
-  const emptyEl=document.getElementById('ptEmpty');
-  const countEl=document.getElementById('ptCount');
-  loadEl.style.display='block'; listEl.innerHTML='';
-  try{
-    const res=await fetch('/patients');
-    if(!res.ok){loadEl.textContent='Failed to load.';return;}
-    const data=await res.json();
-    loadEl.style.display='none';
-    countEl.textContent=data.length+' patient'+(data.length!==1?'s':'');
-    if(data.length===0){emptyEl.style.display='block';return;}
-    emptyEl.style.display='none';
-    data.forEach((p,i)=>{
-      const div=document.createElement('div');
-      div.className='hlist-item';
-      div.style.animationDelay=(i*0.05)+'s';
-      div.innerHTML=`<div><strong>${escHtml(p.name)}</strong><span style="color:#64748b;font-size:13px;margin-left:10px">Age: ${p.age} &middot; Dr. ${escHtml(p.doctor)}</span></div><button class="btn-danger-custom" onclick="deletePatient(${p.id},'${escHtml(p.name)}')">Delete</button>`;
+      div.className='hlist-item'; div.style.animationDelay=(i*0.05)+'s';
+      div.innerHTML=`
+        <div><strong>${escHtml(d.name)}</strong> <span class="badge-info" style="margin-left:8px">${escHtml(d.specialisation)}</span>${d.phone?`<span style="color:#94a3b8;font-size:12px;margin-left:8px">${escHtml(d.phone)}</span>`:''}</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn-secondary-custom" onclick="openEditDoctor(${d.id},'${escHtml(d.name)}','${escHtml(d.specialisation)}')">Edit</button>
+          <button class="btn-danger-custom" onclick="deleteDoctor(${d.id},'${escHtml(d.name)}')">Remove</button>
+        </div>`;
       listEl.appendChild(div);
     });
   }catch(e){loadEl.textContent='Network error.';}
@@ -313,7 +549,7 @@ async function addStaff(){
   try{
     const res=await fetch('/add_staff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass,role})});
     const data=await res.json();
-    if(!res.ok){showBanner(data.error||'Failed to create account.','danger');return;}
+    if(!res.ok){showBanner(data.error||'Failed.','danger');return;}
     showBanner(data.msg,'success');
     ['sfUser','sfPass'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('sfRole').value='';
@@ -321,9 +557,8 @@ async function addStaff(){
   }catch(e){showBanner('Network error.','danger');}
   finally{setBtn('addStaffBtn',false,'Create account');}
 }
-
 async function deactivateStaff(id,username){
-  if(!confirm(`Deactivate account "${username}"?`)) return;
+  if(!confirm(`Deactivate "${username}"?`)) return;
   try{
     const res=await fetch('/deactivate_staff/'+id,{method:'DELETE'});
     const data=await res.json();
@@ -331,7 +566,6 @@ async function deactivateStaff(id,username){
     showBanner('Account deactivated.','success'); loadStaff();
   }catch(e){showBanner('Network error.','danger');}
 }
-
 async function loadStaff(){
   const loadEl=document.getElementById('sfLoading');
   const listEl=document.getElementById('sfList');
@@ -340,7 +574,7 @@ async function loadStaff(){
   loadEl.style.display='block'; listEl.innerHTML='';
   try{
     const res=await fetch('/staff');
-    if(!res.ok){loadEl.textContent='Failed to load.';return;}
+    if(!res.ok){loadEl.textContent='Failed.';return;}
     const data=await res.json();
     loadEl.style.display='none';
     countEl.textContent=data.length+' account'+(data.length!==1?'s':'');
@@ -349,14 +583,88 @@ async function loadStaff(){
     const colors={doctor:'badge-done',lab:'badge-pending',pharmacy:'badge-info',patient:'badge-info'};
     data.forEach((u,i)=>{
       const div=document.createElement('div');
-      div.className='hlist-item';
-      div.style.animationDelay=(i*0.05)+'s';
-      div.innerHTML=`<div><strong>${escHtml(u.username)}</strong> <span class="${colors[u.role]||'badge-info'}" style="margin-left:8px">${escHtml(u.role)}</span></div><button class="btn-danger-custom" onclick="deactivateStaff(${u.id},'${escHtml(u.username)}')">Deactivate</button>`;
+      div.className='hlist-item'; div.style.animationDelay=(i*0.05)+'s';
+      div.innerHTML=`
+        <div><strong>${escHtml(u.username)}</strong> <span class="${colors[u.role]||'badge-info'}" style="margin-left:8px">${escHtml(u.role)}</span></div>
+        <button class="btn-danger-custom" onclick="deactivateStaff(${u.id},'${escHtml(u.username)}')">Deactivate</button>`;
       listEl.appendChild(div);
     });
   }catch(e){loadEl.textContent='Network error.';}
 }
 
-loadDoctorDropdown(); loadPatients();
+/* ── LAB TESTS ── */
+async function addLabTest(){
+  const name=document.getElementById('ltName').value.trim();
+  const category=document.getElementById('ltCategory').value;
+  if(!name){showBanner('Test name is required.','warning');return;}
+  setBtn('addLtBtn',true,'Add test');
+  try{
+    const res=await fetch('/add_lab_test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,category})});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed.','danger');return;}
+    showBanner(data.msg,'success');
+    document.getElementById('ltName').value='';
+    document.getElementById('ltCategory').value='';
+    loadLabTests();
+  }catch(e){showBanner('Network error.','danger');}
+  finally{setBtn('addLtBtn',false,'Add test');}
+}
+
+async function deleteLabTest(id,name){
+  if(!confirm(`Remove "${name}" from lab tests?`)) return;
+  try{
+    const res=await fetch('/delete_lab_test/'+id,{method:'DELETE'});
+    const data=await res.json();
+    if(!res.ok){showBanner(data.error||'Failed.','danger');return;}
+    showBanner(data.msg,'success'); loadLabTests();
+  }catch(e){showBanner('Network error.','danger');}
+}
+
+async function loadLabTests(){
+  const loadEl=document.getElementById('ltLoading');
+  const listEl=document.getElementById('ltList');
+  const emptyEl=document.getElementById('ltEmpty');
+  const countEl=document.getElementById('ltCount');
+  loadEl.style.display='block'; listEl.innerHTML='';
+  try{
+    const res=await fetch('/lab_tests');
+    if(!res.ok){loadEl.textContent='Failed to load.';return;}
+    const data=await res.json();
+    loadEl.style.display='none';
+    countEl.textContent=data.length+' test'+(data.length!==1?'s':'');
+    if(data.length===0){emptyEl.style.display='block';return;}
+    emptyEl.style.display='none';
+
+    // Group by category
+    const groups={};
+    data.forEach(t=>{
+      const cat=t.category||'Other';
+      if(!groups[cat]) groups[cat]=[];
+      groups[cat].push(t);
+    });
+
+    Object.keys(groups).sort().forEach(cat=>{
+      const catDiv=document.createElement('div');
+      catDiv.style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;padding:.5rem 0 .25rem';
+      catDiv.textContent=cat;
+      listEl.appendChild(catDiv);
+      groups[cat].forEach((t,i)=>{
+        const div=document.createElement('div');
+        div.className='hlist-item'; div.style.animationDelay=(i*0.04)+'s';
+        div.innerHTML=`
+          <div style="display:flex;align-items:center;gap:8px">
+            <i class="bi bi-eyedropper" style="color:#2563eb;font-size:14px"></i>
+            <span style="font-weight:500;font-size:14px">${escHtml(t.name)}</span>
+          </div>
+          <button class="btn-danger-custom" onclick="deleteLabTest(${t.id},'${escHtml(t.name)}')">Remove</button>`;
+        listEl.appendChild(div);
+      });
+    });
+  }catch(e){loadEl.textContent='Network error.';}
+}
+
+/* ── INIT ── */
+loadDoctorDropdown();
+loadPatients();
 </script>
 {% endblock %}
