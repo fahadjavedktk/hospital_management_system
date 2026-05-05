@@ -120,10 +120,11 @@ def test_add_patient_no_doctor(client):
     assert res.status_code == 400
 
 def test_add_patient_invalid_age(client):
+    """Age field removed — test invalid date_of_birth instead."""
     login_as(client, "admin", "Admin@2024!")
     doc_id = get_first_doctor_id(client)
     res = client.post("/add_patient",
-        json={"name": "Ali", "age": 999, "doctor_id": doc_id},
+        json={"name": "Ali", "date_of_birth": "not-a-date", "doctor_id": doc_id},
         content_type="application/json")
     assert res.status_code == 400
 
